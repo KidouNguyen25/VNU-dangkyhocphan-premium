@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sơ đồ CSDL đăng ký tín chỉ</title>
+<style>
+:root{--bg:#f4f6f9;--panel:#fff;--ink:#1c2430;--mute:#5d6b7c;--line:#9aa6b4;--accent:#1168bd;--pk:#b7791f;--fk:#2b6cb0;--uq:#6b46c1;--ok:#2f855a;--warn:#c05621;--chip:#eef1f5;--note:#fff8e6;--head:#1168bd;--headink:#fff;--hl:#e53e3e;--border:#d5dce4}
+@media(prefers-color-scheme:dark){:root{--bg:#12161c;--panel:#1b2129;--ink:#e6ebf1;--mute:#97a3b3;--line:#566273;--accent:#5aa7f0;--pk:#ecc94b;--fk:#63b3ed;--uq:#b794f4;--ok:#68d391;--warn:#f6ad55;--chip:#262e38;--note:#2b2a1d;--head:#23579a;--headink:#fff;--hl:#fc8181;--border:#2e3844}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+header{padding:16px 24px 0}
+h1{margin:0;font-size:20px}
+.sub{color:var(--mute);margin:2px 0 10px}
+.banner{background:var(--note);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:0 24px}
+nav button{background:none;border:0;border-bottom:3px solid transparent;color:var(--mute);padding:8px 14px;font:inherit;cursor:pointer}
+nav button.on{color:var(--accent);border-color:var(--accent);font-weight:600}
+main{padding:16px 24px 40px}
+section.tab{display:none}
+section.tab.on{display:block}
+.tools{display:flex;gap:6px;align-items:center;margin-bottom:8px;color:var(--mute);font-size:13px}
+.tools button{background:var(--panel);border:1px solid var(--border);color:var(--ink);border-radius:6px;padding:2px 10px;cursor:pointer;font:inherit}
+dialog{width:min(680px,92vw);background:var(--panel);color:var(--ink);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin:0 0 4px}
+dialog textarea{width:100%;font:12px/1.45 ui-monospace,Consolas,monospace;color:var(--ink);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
+dialog pre{margin:6px 0 0;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px;overflow:auto;max-height:240px}
+dialog button{font:inherit;font-size:13px;color:var(--ink);background:var(--chip);border:1px solid var(--border);border-radius:6px;padding:4px 12px;cursor:pointer}
+dialog button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+dialog button:disabled{opacity:.45;cursor:not-allowed}
+dialog .modes{display:grid;gap:2px;margin:8px 0;font-size:13px}
+dialog .dact{display:flex;gap:8px;margin-top:12px}
+dialog .sp{flex:1}
+#iMsg{margin-top:6px;white-space:pre-line;font-size:13px}
+#iMsg.ok{color:var(--ok)}#iMsg.err{color:#c53030}
+#work{display:flex;gap:12px;align-items:flex-start}
+#viewport{flex:1;min-width:0;overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--panel);max-height:calc(100vh - 230px);min-height:420px}
+.tools .sp,.r2 .sp{flex:1}
+.tools .ed{display:none;gap:6px}
+body.edit .tools .ed{display:inline-flex}
+.tools button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+body.edit .card{cursor:pointer}
+.card.sel{outline:3px solid var(--accent);outline-offset:1px}
+#panel{display:none;width:380px;flex:none;max-height:calc(100vh - 230px);overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 14px 16px;font-size:13px}
+body.edit #panel{display:block}
+#panel h3{margin:0 0 6px;font-size:15px}
+#panel h4{margin:14px 0 6px;font-size:13px;color:var(--mute);border-top:1px solid var(--border);padding-top:10px}
+#panel h4 small{font-weight:400}
+#panel label{display:block;color:var(--mute);font-size:12px;margin-bottom:6px}
+#panel input[type=text],#panel input:not([type]),#panel select,#panel textarea{width:100%;font:inherit;font-size:13px;color:var(--ink);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;margin-top:2px}
+#panel textarea{font-family:ui-monospace,Consolas,monospace;font-size:12px;resize:vertical}
+#panel button{font:inherit;font-size:12px;color:var(--ink);background:var(--chip);border:1px solid var(--border);border-radius:6px;padding:3px 9px;cursor:pointer}
+#panel button.danger{color:#c53030}
+.row2{display:flex;gap:8px;align-items:flex-end}
+.row2 label{flex:1;margin:0}
+.btns{display:flex;gap:4px;flex:none}
+.ce{border:1px solid var(--border);border-radius:8px;padding:6px;margin-bottom:6px;background:var(--bg)}
+.ce .r1{display:flex;gap:6px}
+.ce .r1 input{margin-top:0!important}
+.ce .r2{display:flex;gap:8px;align-items:center;margin:5px 0}
+.ce>input{margin-top:0!important}
+.ck{display:inline-flex!important;align-items:center;gap:3px;margin:0!important;color:var(--ink)!important;font-size:12px!important}
+.rel{display:grid;grid-template-columns:1fr auto 1fr 1fr auto;gap:4px;align-items:center;margin-bottom:6px}
+.rel select{margin-top:0!important}
+.inrel{margin:0;padding-left:18px}
+button.chip{border:0;cursor:pointer}
+.chip.off{background:var(--chip)!important;color:var(--mute);opacity:.55}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1c2430;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:20}
+@media(max-width:1000px){#work{flex-direction:column}#panel{width:100%;max-height:none}}
+#sizer{position:relative}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0;display:grid;grid-template-columns:repeat(4,310px);column-gap:120px;padding:30px;align-items:start}
+.col{display:flex;flex-direction:column;gap:34px}
+#lines{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+#lines path{fill:none;stroke:var(--line);stroke-width:1.4}
+#lines path.on{stroke:var(--hl);stroke-width:2.2}
+#stage.dim #lines path:not(.on){opacity:.25}
+#stage.dim .card:not(.on){opacity:.55}
+.card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow:hidden}
+.card.on{border-color:var(--hl)}
+.ch{background:var(--head);color:var(--headink);padding:6px 10px}
+.ch b{font-family:ui-monospace,Consolas,monospace;font-size:14px;display:block}
+.ch span{font-size:11.5px;opacity:.9}
+.r{display:grid;grid-template-columns:56px 1fr auto;gap:6px;align-items:center;padding:3px 10px;border-top:1px solid var(--border);font-size:12.5px}
+.r .n{font-family:ui-monospace,Consolas,monospace}
+.r .ty{color:var(--mute);font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+.bs{display:flex;gap:2px}
+.b{font-style:normal;font-size:9.5px;font-weight:700;border-radius:3px;padding:0 3px;color:#fff;line-height:15px}
+.b.p{background:var(--pk)}.b.f{background:var(--fk)}.b.u{background:var(--uq)}
+.notes{margin:0;padding:6px 10px 7px 24px;background:var(--note);border-top:1px solid var(--border);font-size:11px;color:var(--mute)}
+.notes li{margin:1px 0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--mute);align-items:center}
+.enums{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.enums div{background:var(--chip);border-radius:6px;padding:4px 10px;font-size:12.5px}
+.enums code{font-family:ui-monospace,Consolas,monospace}
+h2{font-size:16px;margin:22px 0 8px}
+h2:first-child{margin-top:0}
+table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+th,td{border-bottom:1px solid var(--border);padding:7px 10px;text-align:left;vertical-align:top;font-size:13px}
+th{background:var(--chip);font-weight:600}
+td code,li code,p code{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--chip);padding:0 4px;border-radius:3px}
+.chip{display:inline-block;min-width:20px;text-align:center;font:700 11px ui-monospace,Consolas,monospace;border-radius:4px;padding:1px 5px;margin-right:3px;color:#fff}
+.chip.S{background:var(--ok)}.chip.I{background:var(--fk)}.chip.U{background:var(--warn)}.chip.D{background:#c53030}.chip.A{background:var(--uq)}
+.none{color:var(--mute)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+.box h3{margin:0 0 4px;font-size:14px}
+.box .meta{color:var(--mute);font-size:12.5px;margin-bottom:4px}
+.box ol,.box ul{margin:4px 0 0;padding-left:20px;font-size:13px}
+.verb{font:700 11px ui-monospace,Consolas,monospace;border-radius:4px;padding:1px 6px;color:#fff;margin-right:6px}
+.verb.GET{background:var(--ok)}.verb.POST{background:var(--fk)}.verb.PUT{background:var(--warn)}.verb.DELETE{background:#c53030}
+.q{float:right;font-size:12px;background:var(--chip);border-radius:10px;padding:0 9px;color:var(--mute)}
+.tag{font-size:11px;border-radius:10px;padding:0 8px;background:var(--chip);color:var(--mute);white-space:nowrap}
+@media(max-width:700px){header,main,nav{padding-left:12px;padding-right:12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sơ đồ CSDL – Hệ thống đăng ký tín chỉ VNU</h1>
+  <p class="sub" id="stats"></p>
+  <div class="banner"><b>Lược đồ đề xuất để xem, chưa triển khai.</b> Thay bằng lược đồ của Quyền (K2, K4) khi bàn giao. Suy ra từ Đặc tả API, Danh sách endpoints và Bản ghi công việc; chỗ nào là giả định thì ghi ở tab cuối.</div>
+</header>
+<nav id="tabs"></nav>
+<main>
+  <section class="tab" id="tab-erd">
+    <div class="tools"><button id="zo">−</button><button id="zi">+</button><button id="zf">Vừa khung</button><span id="zv"></span><span class="hint">· Rê chuột vào bảng để làm nổi quan hệ.</span>
+      <span class="sp"></span>
+      <span class="ed"><button id="bAddT">+ Bảng</button><button id="bExp">Xuất JSON</button><button id="bImp">Nhập JSON</button><button id="bRst">Đặt lại</button></span>
+      <button id="bEdit" class="primary">Chế độ sửa</button>
+      <input type="file" id="fImp" accept=".json,application/json" hidden>
+    </div>
+    <div id="work">
+      <div id="viewport"><div id="sizer"><div id="stage"><svg id="lines"></svg></div></div></div>
+      <aside id="panel"></aside>
+    </div>
+    <dialog id="dImp">
+      <h3>Nhập từ JSON</h3>
+      <p class="none">Dán JSON hoặc chọn file. Nhận hai dạng: file xuất từ trang này (có <code>T</code> và <code>R</code>), hoặc dạng gọn xem ở ví dụ bên dưới.</p>
+      <textarea id="tImp" rows="12" spellcheck="false" placeholder="Dán JSON vào đây"></textarea>
+      <div id="iMsg" class="none"></div>
+      <div class="modes">
+        <label><input type="radio" name="imode" value="merge" checked> Gộp thêm: giữ bảng và cột hiện có, chỉ thêm cái mới</label>
+        <label><input type="radio" name="imode" value="replace"> Thay toàn bộ lược đồ hiện tại</label>
+      </div>
+      <details><summary>Ví dụ dạng gọn</summary><pre id="iEx"></pre></details>
+      <div class="dact"><button type="button" id="iFile">Chọn file…</button><span class="sp"></span><button type="button" id="iCancel">Hủy</button><button type="button" id="iOk" class="primary" disabled>Nhập</button></div>
+    </dialog>
+    <datalist id="types"></datalist>
+    <div class="legend">
+      <span><i class="b p">PK</i> khóa chính</span><span><i class="b f">FK</i> khóa ngoại</span><span><i class="b u">UQ</i> duy nhất</span>
+      <span><code>?</code> sau kiểu: cho phép NULL</span><span>Chân chim = phía nhiều, hai gạch = phía một</span><span>Ô vàng: ràng buộc và chỉ mục</span><span>Chỉnh sửa lưu tự động trong trình duyệt này</span>
+    </div>
+    <div class="enums" id="enums"></div>
+  </section>
+  <section class="tab" id="tab-perm"></section>
+  <section class="tab" id="tab-flow"></section>
+  <section class="tab" id="tab-inv"></section>
+</main>
+
+<script>
+/* ---------- Dữ liệu lược đồ ---------- */
+// cột: [tên, kiểu, cờ(p=PK f=FK u=UQ n=NULL), ghi chú]
+const T=[
+{id:'account',col:0,desc:'Tài khoản đăng nhập: sinh viên và quản trị',cols:[
+ ['id','bigint','p','identity'],
+ ['code','varchar(20)','u','mã sinh viên hoặc tên đăng nhập'],
+ ['full_name','varchar(100)','',''],
+ ['password_hash','varchar(100)','','băm bcrypt/argon2, không bao giờ trả ra API'],
+ ['role','account_role','','STUDENT hoặc ADMIN, đưa vào JWT lúc đăng nhập']],notes:[]},
+{id:'idempotency_key',col:0,desc:'Khóa chống xử lý trùng cho POST /enrollments',cols:[
+ ['student_id','bigint','pf',''],
+ ['idem_key','varchar(64)','p','giá trị header Idempotency-Key'],
+ ['request_hash','bytea','','SHA-256 của body, 32 byte; cùng khóa khác body thì từ chối'],
+ ['status_code','smallint','n','NULL khi đang xử lý'],
+ ['response','jsonb','n','kết quả từng lớp, trả lại nguyên văn khi gửi lại'],
+ ['created_at','timestamptz','','default now(); dọn bản ghi cũ hơn 24 giờ']],notes:['PK (student_id, idem_key)']},
+{id:'audit_log',col:0,desc:'Nhật ký thay đổi của quản trị, chỉ ghi thêm',cols:[
+ ['id','bigint','p','identity'],
+ ['actor_id','bigint','f',''],
+ ['action','varchar(30)','','UPSERT_SECTION, UPSERT_REGISTRATION'],
+ ['target','varchar(40)','','sectionId hoặc term'],
+ ['detail','jsonb','n','giá trị trước và sau'],
+ ['created_at','timestamptz','','default now()']],notes:[]},
+
+{id:'passed_course',col:1,desc:'Môn đã đạt, dùng kiểm tra tiên quyết',cols:[
+ ['student_id','bigint','pf',''],
+ ['course_code','varchar(12)','pf','']],notes:['PK (student_id, course_code)']},
+{id:'enrollment',col:1,desc:'Lượt đăng ký của sinh viên vào một lớp',cols:[
+ ['id','bigint','p','identity, dùng ở DELETE /enrollments/{id}'],
+ ['student_id','bigint','uf','từ JWT, không nhận từ client'],
+ ['section_id','bigint','uf',''],
+ ['status','enrollment_status','','PENDING, CONFIRMED, FAILED'],
+ ['fail_code','varchar(30)','n','SECTION_FULL, SCHEDULE_CONFLICT, ...'],
+ ['created_at','timestamptz','','default now()']],notes:[
+ 'UNIQUE (student_id, section_id): chặn đăng ký trùng, cũng là chỉ mục tra theo sinh viên',
+ "CHECK ((status = 'FAILED') = (fail_code IS NOT NULL))",
+ 'Hủy = xóa dòng. Đăng ký lại sau FAILED = ON CONFLICT DO UPDATE']},
+
+{id:'course',col:2,desc:'Học phần',cols:[
+ ['code','varchar(12)','p','khóa tự nhiên, khỏi JOIN khi lọc courseCode'],
+ ['name','varchar(150)','',''],
+ ['credits','smallint','','']],notes:['CHECK (credits BETWEEN 1 AND 10)']},
+{id:'section',col:2,desc:'Lớp học phần mở trong một đợt',cols:[
+ ['id','bigint','p','identity BY DEFAULT: PUT /admin/sections/{sectionId} truyền id'],
+ ['course_code','varchar(12)','f',''],
+ ['term','varchar(10)','f','đợt đăng ký chứa lớp này'],
+ ['lecturer','varchar(100)','','chỉ để hiển thị nên là cột chữ'],
+ ['capacity','smallint','','sĩ số tối đa'],
+ ['enrolled_count','smallint','','default 0, bản đếm duy nhất; chỗ còn lại = capacity − enrolled_count']],notes:[
+ 'CHECK (capacity > 0 AND enrolled_count BETWEEN 0 AND capacity)',
+ 'INDEX (term, course_code): tra cứu và phân trang']},
+
+{id:'course_prerequisite',col:3,desc:'Học phần tiên quyết (phải đạt tất cả)',cols:[
+ ['course_code','varchar(12)','pf',''],
+ ['prerequisite_code','varchar(12)','pf','']],notes:['PK (course_code, prerequisite_code)','CHECK (course_code <> prerequisite_code)']},
+{id:'registration_period',col:3,desc:'Đợt đăng ký của một học kỳ',cols:[
+ ['term','varchar(10)','p','ví dụ 2026-1; PUT /admin/registration upsert theo term'],
+ ['login_opens_at','timestamptz','','mở đăng nhập'],
+ ['opens_at','timestamptz','','mở đăng ký'],
+ ['closes_at','timestamptz','','đóng đăng ký và đăng nhập'],
+ ['status','registration_status','','SCHEDULED, OPEN, CLOSED'],
+ ['credit_limit','smallint','','giới hạn tín chỉ cho cả đợt']],notes:[
+ 'CHECK (login_opens_at <= opens_at AND opens_at < closes_at)',
+ 'CHECK (credit_limit > 0)',
+ "UNIQUE INDEX ((status)) WHERE status = 'OPEN': tối đa một đợt mở"]},
+{id:'section_meeting',col:3,desc:'Buổi học của lớp, dùng kiểm tra trùng lịch',cols:[
+ ['section_id','bigint','pf',''],
+ ['day_of_week','smallint','p','1 đến 7'],
+ ['start_slot','smallint','p','tiết bắt đầu'],
+ ['end_slot','smallint','','tiết kết thúc']],notes:['PK (section_id, day_of_week, start_slot)','CHECK (day_of_week BETWEEN 1 AND 7 AND end_slot > start_slot)']}
+];
+const R=[ // [bảng con, cột, bảng cha, cột]
+['passed_course','student_id','account','id'],
+['passed_course','course_code','course','code'],
+['course_prerequisite','course_code','course','code'],
+['course_prerequisite','prerequisite_code','course','code'],
+['section','course_code','course','code'],
+['section','term','registration_period','term'],
+['section_meeting','section_id','section','id'],
+['enrollment','student_id','account','id'],
+['enrollment','section_id','section','id'],
+['idempotency_key','student_id','account','id'],
+['audit_log','actor_id','account','id']];
+const ENUMS=[['account_role',['STUDENT','ADMIN']],['registration_status',['SCHEDULED','OPEN','CLOSED']],['enrollment_status',['PENDING','CONFIRMED','FAILED']]];
+
+/* Quyền DB: S=SELECT I=INSERT U=UPDATE D=DELETE A=toàn quyền (DDL + DML) */
+const PERM={ // [owner, api, readonly]
+account:['A','S','S*'],course:['A','S','S'],course_prerequisite:['A','S','S'],passed_course:['A','S','S'],
+registration_period:['A','SIU','S'],section:['A','SIU','S'],section_meeting:['A','SIUD','S'],
+enrollment:['A','SIUD','S'],idempotency_key:['A','SID',''],audit_log:['A','I','S']};
+
+const FLOWS=[
+{v:'POST',p:'/auth/login',q:'1',tx:'không',t:['account','registration_period'],s:[
+ 'SELECT account theo <code>code</code>, JOIN đợt chưa CLOSED để kiểm <code>now()</code> nằm trong loginOpensAt đến closesAt.',
+ 'Băm mật khẩu và ký JWT ở phần xử lý, không ghi gì vào DB.',
+ 'Giới hạn số lần thử theo IP và tài khoản đặt ở bộ nhớ ứng dụng hoặc Redis, không có bảng.']},
+{v:'GET',p:'/me',q:'1',tx:'không',t:['account','passed_course','registration_period'],s:[
+ 'Một câu: hồ sơ từ account, <code>array_agg</code> môn đã đạt, credit_limit của đợt hiện tại.']},
+{v:'GET',p:'/registration',q:'1',tx:'không',t:['registration_period'],s:[
+ 'Một câu đọc đợt chưa CLOSED, trả luôn <code>now()</code> làm serverTime. Cache ngắn vài giây.']},
+{v:'GET',p:'/sections',q:'1',tx:'không',t:['section','course','course_prerequisite','section_meeting','registration_period'],s:[
+ 'Một câu JOIN course, gom tiên quyết và lịch bằng <code>json_agg</code>, phân trang keyset theo <code>section.id</code>.',
+ 'Chỗ còn lại = <code>capacity − enrolled_count</code> tính lúc đọc, không có cột riêng nên không thể lệch.',
+ 'ETag lấy từ dữ liệu trả về, giá trị chỉ mang tính tham khảo.']},
+{v:'GET',p:'/enrollments',q:'1',tx:'không',t:['enrollment','section','course'],s:[
+ 'Một câu: enrollment JOIN section JOIN course, tổng tín chỉ bằng window function. Dùng chỉ mục UNIQUE (student_id, section_id).']},
+{v:'POST',p:'/enrollments',q:'6',tx:'1 giao dịch ngắn',t:['idempotency_key','account','registration_period','section','section_meeting','course_prerequisite','passed_course','enrollment'],s:[
+ '<code>INSERT idempotency_key … ON CONFLICT DO NOTHING</code>. Trùng khóa: trả lại <code>response</code> đã lưu, khác <code>request_hash</code> thì 422.',
+ '<code>SELECT … FROM account WHERE id = $jwt FOR UPDATE</code>: tuần tự hóa các yêu cầu cùng một sinh viên, chặn đua trùng lịch và vượt tín chỉ theo chiều sinh viên.',
+ 'Một câu CTE kiểm: đợt OPEN và trong giờ, tiên quyết thiếu, tín chỉ hiện có cộng mới so với credit_limit, trùng lịch với lớp đang có và giữa các lớp trong request, đã đăng ký.',
+ '<code>WITH l AS (SELECT id FROM section WHERE id = ANY($ids) ORDER BY id FOR UPDATE) UPDATE section … SET enrolled_count = enrolled_count + 1 WHERE enrolled_count < capacity RETURNING id</code>. Khóa theo id tăng dần, lớp không trả về là hết chỗ (409).',
+ '<code>INSERT enrollment (CONFIRMED) ON CONFLICT (student_id, section_id) DO UPDATE … WHERE status = \'FAILED\'</code>.',
+ '<code>UPDATE idempotency_key SET status_code, response</code> rồi COMMIT.',
+ 'Tranh chấp theo lớp nằm ở bước 4, theo sinh viên ở bước 2. Thứ tự khóa cố định: account rồi section tăng dần.',
+ 'Chờ chốt (V1, quyết định 1): tất cả hoặc không. Nếu tất cả hoặc không thì ROLLBACK khi có lớp thiếu chỗ; nếu chấp nhận từng phần thì giữ nguyên các lớp thành công. Lược đồ phục vụ được cả hai.']},
+{v:'DELETE',p:'/enrollments/{enrollmentId}',q:'1',tx:'một câu CTE',t:['enrollment','section','registration_period'],s:[
+ '<code>WITH d AS (DELETE FROM enrollment e USING section s, registration_period p WHERE e.id = $id AND e.student_id = $jwt AND status = \'CONFIRMED\' AND đợt OPEN và trong giờ RETURNING e.section_id) UPDATE section SET enrolled_count = enrolled_count − 1 WHERE id IN (SELECT section_id FROM d)</code>.',
+ 'Hoàn chỗ đúng một lần: chỉ hoàn khi xóa được dòng. Gọi lại thì không còn dòng, không hoàn thêm.',
+ 'Không xóa được dòng nào: thêm một câu phân biệt 404, 403 ngoài khung giờ, 403 không phải chủ.']},
+{v:'PUT',p:'/admin/sections/{sectionId}',q:'3',tx:'1 giao dịch',t:['section','section_meeting','audit_log'],s:[
+ 'CTE: <code>INSERT section … ON CONFLICT (id) DO UPDATE</code> kèm <code>INSERT audit_log</code>. CHECK chặn hạ capacity xuống dưới enrolled_count.',
+ '<code>DELETE section_meeting WHERE section_id = $id</code>.',
+ '<code>INSERT section_meeting</code> nhiều dòng.',
+ 'Không có bộ đếm Redis để đồng bộ lại khi đổi sĩ số, vì enrolled_count là bản duy nhất.']},
+{v:'PUT',p:'/admin/registration',q:'1',tx:'một câu CTE',t:['registration_period','audit_log'],s:[
+ 'CTE: <code>INSERT registration_period … ON CONFLICT (term) DO UPDATE</code> kèm <code>INSERT audit_log</code>.',
+ 'UNIQUE INDEX một đợt OPEN và các CHECK mốc giờ do DB giữ.']},
+{v:'GET',p:'/health',q:'1',tx:'không',t:[],s:['<code>SELECT 1</code> bằng tài khoản dkhp_api.']}];
+
+const INV=[
+['Không vượt sĩ số','section: <code>CHECK (enrolled_count &lt;= capacity)</code> và UPDATE có điều kiện <code>WHERE enrolled_count &lt; capacity</code>','Ràng buộc DB'],
+['Không đăng ký trùng','enrollment: <code>UNIQUE (student_id, section_id)</code>','Ràng buộc DB'],
+['Hủy trả chỗ đúng một lần','DELETE và giảm enrolled_count trong cùng một câu CTE; gọi lại không xóa được dòng nên không hoàn thêm','Câu lệnh nguyên tử'],
+['Gửi lại không sinh kết quả phụ','idempotency_key: <code>PK (student_id, idem_key)</code> cùng request_hash và response','Ràng buộc DB'],
+['Tối đa một đợt đang mở','<code>UNIQUE INDEX ((status)) WHERE status = \'OPEN\'</code>','Ràng buộc DB'],
+['Mốc giờ của đợt hợp lệ','<code>CHECK (login_opens_at &lt;= opens_at AND opens_at &lt; closes_at)</code>','Ràng buộc DB'],
+['Không hạ sĩ số dưới số đã đăng ký','CHECK trên section làm UPDATE capacity thất bại','Ràng buộc DB'],
+['FAILED luôn có mã lỗi','<code>CHECK ((status = \'FAILED\') = (fail_code IS NOT NULL))</code>','Ràng buộc DB'],
+['Tiên quyết không tự trỏ về mình','<code>CHECK (course_code &lt;&gt; prerequisite_code)</code>','Ràng buộc DB'],
+['Lịch học hợp lệ','<code>CHECK (day_of_week BETWEEN 1 AND 7 AND end_slot &gt; start_slot)</code>','Ràng buộc DB'],
+['Tiên quyết, giới hạn tín chỉ, trùng lịch','Không khai báo được bằng ràng buộc cột. Kiểm trong giao dịch sau khi khóa dòng account bằng FOR UPDATE','Giao dịch + khóa'],
+['Chỉ chủ sở hữu hủy được','studentId lấy từ JWT, đặt trong WHERE của DELETE','Câu lệnh'],
+['Sĩ số không lệch sau tải','Sau thử tải, dkhp_readonly kiểm <code>enrolled_count = COUNT(CONFIRMED)</code> theo lớp và không lớp nào có enrolled_count &gt; capacity','Kiểm chứng']];
+
+const EXCL=[
+['Bảng phiên, refresh token','JWT sống 60 phút và server không giữ phiên.'],
+['Bảng vai trò, quyền','Chỉ hai vai cố định, đủ bằng enum <code>account_role</code>.'],
+['Bảng học kỳ','<code>term</code> nằm ngay trong registration_period, thêm bảng chỉ thêm một JOIN.'],
+['Bảng giảng viên, phòng học','Chỉ để hiển thị, giảng viên là cột chữ trong section.'],
+['Cột chỗ còn lại, bộ đếm Redis','Tính từ capacity − enrolled_count. Redis nếu dùng chỉ là cache đọc, ghi vẫn qua giao dịch PostgreSQL.'],
+['Bảng hàng đợi','Bật ở bước 3 của V1 khi số đo cho thấy bước 2 không đủ. Khi đó enum PENDING mới được dùng.'],
+['Bảng điểm, GPA','Chỉ cần biết môn nào đã đạt, nên có passed_course.'],
+['Bảng lần thử đăng nhập','Giới hạn tốc độ nằm ở bộ nhớ ứng dụng hoặc Redis.'],
+['Row-level security','Mỗi request sẽ phải thêm một lệnh gán danh tính vào phiên DB. Thay bằng điều kiện studentId từ JWT trong WHERE.']];
+const ASSUME=[
+'Tiên quyết là phải đạt tất cả các môn tiên quyết (AND). Nếu cần "một trong" thì thêm cột nhóm vào course_prerequisite.',
+'Mỗi lớp thuộc đúng một đợt, khóa của đợt là <code>term</code>.',
+'Đăng ký nhiều lớp là tất cả hoặc không. Đây là quyết định 1 của V1 còn mở, lược đồ không phụ thuộc vào lựa chọn.',
+'enrolled_count chỉ đếm CONFIRMED. PENDING chỉ xuất hiện ở đường hàng đợi và chưa chiếm chỗ.',
+'Kiểu dữ liệu là đề xuất: smallint cho số nhỏ, bigint identity cho khóa phát sinh, varchar có giới hạn cho mã, timestamptz cho mọi mốc giờ. Quyền chốt quy ước đặt tên cuối cùng.',
+'Dữ liệu import danh mục và tài khoản chạy bằng dkhp_owner qua tập lệnh, không qua API.'];
+
+/* ---------- Trạng thái và lưu trữ ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o));
+const KEY='dkhp-erd-model';
+const DEF=clone({T,R,ENUMS,PERM,FLOWS,INV,EXCL,ASSUME});
+let M=null;
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.T)&&Array.isArray(s.R))M=Object.assign(clone(DEF),s)}catch(e){}
+if(!M)M=clone(DEF);
+let sel=null,editMode=false,scale=1,sized=false,zoomed=false;
+const stage=$('#stage'),svg=$('#lines'),NS='http://www.w3.org/2000/svg';
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(M))}catch(e){}};
+const ident=s=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(s);
+const erdOn=()=>$('#tab-erd').classList.contains('on');
+function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),3200)}
+const TABS=[['erd','Sơ đồ ERD'],['perm','Quyền'],['flow','Cách ghi và truy vấn'],['inv','Ràng buộc và phạm vi']];
+$('#tabs').innerHTML=TABS.map(([k,l])=>`<button data-k="${k}">${l}</button>`).join('');
+
+/* ---------- ERD ---------- */
+const badge=f=>'<span class="bs">'+(f.includes('p')?'<i class="b p">PK</i>':'')+(f.includes('f')?'<i class="b f">FK</i>':'')+(f.includes('u')?'<i class="b u">UQ</i>':'')+'</span>';
+const card=t=>`<div class="card${t.id===sel?' sel':''}" data-t="${esc(t.id)}" data-col="${t.col}"><div class="ch"><b>${esc(t.id)}</b><span>${esc(t.desc)}</span></div>`+
+ t.cols.map(c=>`<div class="r" data-t="${esc(t.id)}" data-c="${esc(c[0])}" title="${esc(c[3]||'')}">${badge(c[2])}<span class="n">${esc(c[0])}</span><span class="ty">${esc(c[1])}${c[2].includes('n')?'?':''}</span></div>`).join('')+
+ (t.notes.length?`<ul class="notes">${t.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`:'')+'</div>';
+function renderERD(){
+ stage.classList.remove('dim');
+ stage.querySelectorAll('.col').forEach(c=>c.remove());
+ for(let i=0;i<4;i++){const d=document.createElement('div');d.className='col';d.innerHTML=M.T.filter(t=>t.col===i).map(card).join('');stage.insertBefore(d,svg)}
+ $('#enums').innerHTML=M.ENUMS.map(([n,v])=>`<div><code>${esc(n)}</code>: ${esc(v.join(', '))}</div>`).join('');
+ $('#stats').textContent=`${M.T.length} bảng · ${M.R.length} quan hệ · ${M.ENUMS.length} kiểu enum · PostgreSQL`;
+ const base=['bigint','integer','smallint','boolean','text','varchar(20)','varchar(100)','char(10)','numeric(10,2)','date','time','timestamptz','jsonb','uuid','bytea'];
+ $('#types').innerHTML=base.concat(M.ENUMS.map(e=>e[0])).map(x=>`<option value="${esc(x)}">`).join('');
+}
+function layout(fit){
+ const vp=$('#viewport'),natW=stage.offsetWidth,natH=stage.offsetHeight;
+ if(fit){if(vp.clientWidth<100)return;scale=Math.max(.3,Math.min(1,(vp.clientWidth-2)/natW));sized=true;zoomed=false}
+ stage.style.transform=`scale(${scale})`;
+ $('#sizer').style.width=natW*scale+'px';$('#sizer').style.height=natH*scale+'px';
+ $('#zv').textContent=Math.round(scale*100)+'%';
+ svg.setAttribute('width',natW);svg.setAttribute('height',natH);
+ draw();
+}
+function draw(){
+ svg.innerHTML='';
+ const sr=stage.getBoundingClientRect();
+ const rc=el=>{const r=el.getBoundingClientRect();return{l:(r.left-sr.left)/scale,r:(r.right-sr.left)/scale,y:((r.top+r.bottom)/2-sr.top)/scale}};
+ const q=(t,c)=>stage.querySelector(`.r[data-t="${CSS.escape(t)}"][data-c="${CSS.escape(c)}"]`);
+ M.R.forEach(([ft,fc,tt,tc])=>{
+  const fcard=stage.querySelector(`.card[data-t="${CSS.escape(ft)}"]`),tcard=stage.querySelector(`.card[data-t="${CSS.escape(tt)}"]`);
+  const fr=q(ft,fc),tr=q(tt,tc);
+  if(!fcard||!tcard||!fr||!tr)return;
+  const fcol=+fcard.dataset.col,tcol=+tcard.dataset.col,a=rc(fr),b=rc(tr),ca=rc(fcard),cb=rc(tcard);
+  let x1,x2,d1,d2;
+  if(fcol<tcol){x1=ca.r;d1=1;x2=cb.l;d2=-1}
+  else if(fcol>tcol){x1=ca.l;d1=-1;x2=cb.r;d2=1}
+  else{x1=ca.r;d1=1;x2=cb.r;d2=1}
+  const k=fcol===tcol?70:Math.max(40,Math.abs(x2-x1)/2);
+  const y1=a.y,y2=b.y;
+  const p=document.createElementNS(NS,'path');
+  p.setAttribute('d',`M${x1} ${y1}C${x1+d1*k} ${y1} ${x2+d2*k} ${y2} ${x2} ${y2}`);
+  p.dataset.a=ft;p.dataset.b=tt;svg.appendChild(p);
+  const m=document.createElementNS(NS,'path');
+  m.setAttribute('d',`M${x1+d1*12} ${y1}L${x1} ${y1-6}M${x1+d1*12} ${y1}L${x1} ${y1}M${x1+d1*12} ${y1}L${x1} ${y1+6}M${x2+d2*9} ${y2-6}V${y2+6}M${x2+d2*14} ${y2-6}V${y2+6}`);
+  m.dataset.a=ft;m.dataset.b=tt;svg.appendChild(m);
+ });
+}
+stage.addEventListener('mouseover',e=>{
+ const c=e.target.closest('.card');if(!c)return;
+ const id=c.dataset.t,rel=new Set([id]);
+ svg.querySelectorAll('path').forEach(p=>{const on=p.dataset.a===id||p.dataset.b===id;p.classList.toggle('on',on);if(on){rel.add(p.dataset.a);rel.add(p.dataset.b)}});
+ stage.classList.add('dim');
+ stage.querySelectorAll('.card').forEach(x=>x.classList.toggle('on',rel.has(x.dataset.t)));
+});
+stage.addEventListener('mouseleave',()=>{stage.classList.remove('dim');svg.querySelectorAll('path').forEach(p=>p.classList.remove('on'));stage.querySelectorAll('.card').forEach(x=>x.classList.remove('on'))});
+stage.addEventListener('click',e=>{
+ if(!editMode)return;
+ const c=e.target.closest('.card');
+ sel=c?c.dataset.t:null;
+ renderERD();layout(false);renderPanel();
+});
+$('#zi').onclick=()=>{zoomed=true;scale=Math.min(1.6,scale+.1);layout(false)};
+$('#zo').onclick=()=>{zoomed=true;scale=Math.max(.3,scale-.1);layout(false)};
+$('#zf').onclick=()=>layout(true);
+new ResizeObserver(()=>{if(erdOn())layout(!zoomed)}).observe($('#viewport'));
+
+/* ---------- Các tab còn lại ---------- */
+const permOf=id=>M.PERM[id]||(M.PERM[id]=['A','','']);
+const cell=(t,i)=>{const s=permOf(t.id)[i]||'';return ['S','I','U','D'].map(l=>`<button class="chip ${l}${s.includes(l)?'':' off'}" data-pt="${esc(t.id)}" data-pi="${i}" data-l="${l}">${l}</button>`).join('')+(s.includes('*')?' <span class="none">trừ password_hash</span>':'')};
+function renderPerm(){
+ $('#tab-perm').innerHTML=`
+<h2>Vai trò ở tầng ứng dụng (lấy từ JWT)</h2>
+<table><tr><th>Nhóm quyền</th><th>Endpoint</th></tr>
+<tr><td>Công khai</td><td><code>POST /auth/login</code></td></tr>
+<tr><td>Đã đăng nhập</td><td><code>GET /me</code> · <code>GET /registration</code> · <code>GET /sections</code></td></tr>
+<tr><td>Sinh viên</td><td><code>GET /enrollments</code> · <code>POST /enrollments</code> · <code>DELETE /enrollments/{id}</code></td></tr>
+<tr><td>Quản trị</td><td><code>PUT /admin/sections/{id}</code> · <code>PUT /admin/registration</code> · <code>GET /health</code></td></tr></table>
+<p>Vai trò nằm ở cột <code>account.role</code> và được đưa vào JWT lúc đăng nhập. Mọi truy vấn lấy <code>studentId</code> từ JWT. API kết nối DB bằng một tài khoản chung <code>dkhp_api</code>, không tạo DB user theo từng sinh viên.</p>
+<h2>Vai trò ở tầng PostgreSQL</h2>
+<p class="none">Bấm vào chữ cái để bật hoặc tắt quyền. Thay đổi được lưu tự động.</p>
+<table><tr><th>Bảng</th><th><code>dkhp_owner</code><br><small>migration, import, seed (Quyền, Tùng)</small></th><th><code>dkhp_api</code><br><small>phần xử lý phía máy chủ, quyền tối thiểu</small></th><th><code>dkhp_readonly</code><br><small>kiểm chứng sau tải, trình diễn</small></th></tr>
+${M.T.map(t=>`<tr><td><code>${esc(t.id)}</code></td><td><span class="chip A">DDL + DML</span></td><td>${cell(t,1)}</td><td>${cell(t,2)}</td></tr>`).join('')}</table>
+<p><span class="chip S">S</span> SELECT <span class="chip I">I</span> INSERT <span class="chip U">U</span> UPDATE <span class="chip D">D</span> DELETE</p>
+<div class="grid2">
+<div class="box"><h3>dkhp_api</h3><ul>
+<li>LOGIN, không SUPERUSER, CREATEDB, CREATEROLE. Không DDL, không TRUNCATE.</li>
+<li>Không có DELETE trên section. DELETE trên enrollment chỉ dùng cho câu hủy đăng ký.</li>
+<li><code>audit_log</code> chỉ INSERT: không đọc, không sửa, không xóa.</li>
+<li>Bảng danh mục và tài khoản chỉ SELECT: import đi qua dkhp_owner.</li>
+<li>USAGE trên sequence của section, enrollment, audit_log để INSERT.</li></ul></div>
+<div class="box"><h3>dkhp_owner và dkhp_readonly</h3><ul>
+<li>dkhp_owner sở hữu schema, chạy migration của Quyền và seed của Tùng, không dùng lúc API chạy.</li>
+<li>dkhp_readonly chỉ SELECT. Cột password_hash và bảng idempotency_key không cấp.</li>
+<li>Cổng DB chỉ mở cho máy chạy API và các máy trong Tailscale, không mở Internet.</li></ul></div></div>`;
+}
+$('#tab-perm').addEventListener('click',e=>{
+ const b=e.target.closest('button[data-pt]');if(!b)return;
+ const p=permOf(b.dataset.pt),i=+b.dataset.pi,l=b.dataset.l;
+ let s=p[i]||'';const star=s.includes('*');s=s.replace('*','');
+ s=s.includes(l)?s.replace(l,''):s+l;
+ s=['S','I','U','D'].filter(x=>s.includes(x)).join('')+(star&&s.includes('S')?'*':'');
+ p[i]=s;save();renderPerm();
+});
+function renderFlow(){
+ $('#tab-flow').innerHTML=`<p>Mỗi endpoint viết gọn theo số câu SQL và phạm vi giao dịch. Mục tiêu: một request chạm DB ít nhất, tranh chấp gom về hai khóa cố định (account, rồi section tăng dần). Nội dung tab này là chữ cố định, chỉ tên bảng được đổi theo khi bạn đổi tên bảng.</p><div class="grid2">`+
+ M.FLOWS.map(f=>`<div class="box"><h3><span class="verb ${f.v}">${f.v}</span><code>${f.p}</code><span class="q">${f.q} câu · ${f.tx}</span></h3>
+<div class="meta">${f.t.length?f.t.map(x=>`<code>${esc(x)}</code>`).join(' '):'không chạm bảng nghiệp vụ'}</div><ol>${f.s.map(x=>`<li>${x}</li>`).join('')}</ol></div>`).join('')+'</div>';
+}
+function renderInv(){
+ $('#tab-inv').innerHTML=`<h2>Bất biến nghiệp vụ và nơi giữ</h2>
+<table><tr><th>Bất biến</th><th>Cơ chế</th><th>Loại</th></tr>${M.INV.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><span class="tag">${r[2]}</span></td></tr>`).join('')}</table>
+<h2>Chủ ý không đưa vào</h2>
+<table><tr><th>Thành phần</th><th>Lý do</th></tr>${M.EXCL.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>
+<h2>Giả định cần Quyền xác nhận</h2><ul>${M.ASSUME.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+}
+
+/* ---------- Làm mới ---------- */
+function refresh(){
+ save();renderERD();
+ if(erdOn())layout(false);
+ renderPerm();renderFlow();renderInv();
+}
+
+/* ---------- Thao tác sửa ---------- */
+const tbl=id=>M.T.find(t=>t.id===id);
+function replaceWord(from,to,{all}){
+ const rx=new RegExp('\\b'+from+'\\b','g'),f=s=>typeof s==='string'?s.replace(rx,to):s;
+ if(all){
+  M.T.forEach(t=>{t.desc=f(t.desc);t.notes=t.notes.map(f);t.cols.forEach(c=>{c[3]=f(c[3])})});
+  M.FLOWS.forEach(x=>{x.s=x.s.map(f);x.t=x.t.map(y=>y===from?to:y)});
+  M.INV=M.INV.map(r=>r.map(f));M.EXCL=M.EXCL.map(r=>r.map(f));M.ASSUME=M.ASSUME.map(f);
+ }
+}
+function renameTable(old,nu){
+ if(!ident(nu))return toast('Tên bảng chỉ gồm chữ, số, dấu gạch dưới và không bắt đầu bằng số.'),false;
+ if(nu!==old&&tbl(nu))return toast('Đã có bảng tên '+nu+'.'),false;
+ if(nu===old)return true;
+ tbl(old).id=nu;
+ M.R.forEach(r=>{if(r[0]===old)r[0]=nu;if(r[2]===old)r[2]=nu});
+ M.PERM[nu]=M.PERM[old];delete M.PERM[old];
+ replaceWord(old,nu,{all:true});
+ sel=nu;return true;
+}
+function renameColumn(t,old,nu){
+ if(!ident(nu))return toast('Tên cột chỉ gồm chữ, số, dấu gạch dưới và không bắt đầu bằng số.'),false;
+ if(t.cols.some(c=>c[0]===nu&&nu!==old))return toast('Bảng đã có cột '+nu+'.'),false;
+ if(nu===old)return true;
+ t.cols.find(c=>c[0]===old)[0]=nu;
+ M.R.forEach(r=>{if(r[0]===t.id&&r[1]===old)r[1]=nu;if(r[2]===t.id&&r[3]===old)r[3]=nu});
+ const rx=new RegExp('\\b'+old+'\\b','g');
+ t.notes=t.notes.map(s=>s.replace(rx,nu));
+ return true;
+}
+const pkCol=t=>(t.cols.find(c=>c[2].includes('p'))||t.cols[0]||[''])[0];
+function newTable(){
+ let n=1;while(tbl('table_'+n))n++;
+ const cnt=[0,0,0,0];M.T.forEach(t=>cnt[t.col]++);
+ const col=cnt.indexOf(Math.min(...cnt));
+ M.T.push({id:'table_'+n,col,desc:'Bảng mới',cols:[['id','bigint','p','identity']],notes:[]});
+ M.PERM['table_'+n]=['A','',''];
+ sel='table_'+n;
+}
+
+/* ---------- Bảng điều khiển ---------- */
+function relBox(t){
+ const out=M.R.map((r,i)=>[r,i]).filter(([r])=>r[0]===t.id);
+ const inn=M.R.filter(r=>r[2]===t.id);
+ const opts=(arr,v)=>arr.map(x=>`<option value="${esc(x)}"${x===v?' selected':''}>${esc(x)}</option>`).join('');
+ return (out.map(([r,i])=>{
+  const tt=tbl(r[2]);
+  return `<div class="rel" data-i="${i}"><select data-act="rcol">${opts(t.cols.map(c=>c[0]),r[1])}</select><span>→</span><select data-act="rtable">${opts(M.T.map(x=>x.id),r[2])}</select><select data-act="rtcol">${opts(tt?tt.cols.map(c=>c[0]):[r[3]],r[3])}</select><button class="danger" data-act="rdel" title="Xóa quan hệ">✕</button></div>`;
+ }).join('')||'<p class="none">Chưa có.</p>')+
+ '<button data-act="radd">+ Thêm quan hệ</button><h4>Quan hệ đi vào</h4>'+
+ (inn.length?'<ul class="inrel">'+inn.map(r=>`<li><code>${esc(r[0])}.${esc(r[1])}</code> → <code>${esc(r[3])}</code></li>`).join('')+'</ul>':'<p class="none">Chưa có.</p>');
+}
+function renderRel(){const t=tbl(sel);if(t&&$('#relbox'))$('#relbox').innerHTML=relBox(t)}
+function renderPanel(){
+ const p=$('#panel'),t=tbl(sel);
+ if(!t){
+  p.innerHTML=`<h3>Chưa chọn bảng</h3><p>Bấm vào một bảng trong sơ đồ để sửa tên, cột, ghi chú và quan hệ. Hoặc dùng <b>+ Bảng</b> để thêm bảng mới.</p><h4>Kiểu enum</h4>`+
+  M.ENUMS.map((e,i)=>`<div class="ce" data-i="${i}"><div class="r1"><input data-act="ename" value="${esc(e[0])}" placeholder="tên enum"><button class="danger" data-act="edel" title="Xóa enum">✕</button></div><input data-act="evals" value="${esc(e[1].join(', '))}" placeholder="giá trị, cách nhau bằng dấu phẩy"></div>`).join('')+
+  '<button data-act="eadd">+ Thêm enum</button>';
+  return;
+ }
+ p.innerHTML=`<h3>Bảng <code id="ptitle">${esc(t.id)}</code></h3>
+<label>Tên bảng<input data-act="tname" value="${esc(t.id)}"></label>
+<label>Mô tả<input data-act="tdesc" value="${esc(t.desc)}"></label>
+<div class="row2"><label>Cột trên sơ đồ<select data-act="tcol">${[0,1,2,3].map(i=>`<option value="${i}"${t.col===i?' selected':''}>Cột ${i+1}</option>`).join('')}</select></label>
+<span class="btns"><button data-act="tup">↑</button><button data-act="tdown">↓</button><button class="danger" data-act="tdel">Xóa bảng</button></span></div>
+<h4>Cột</h4>
+${t.cols.map((c,i)=>`<div class="ce" data-i="${i}"><div class="r1"><input data-act="cname" value="${esc(c[0])}" placeholder="tên cột"><input data-act="ctype" list="types" value="${esc(c[1])}" placeholder="kiểu"></div>
+<div class="r2">${[['p','PK'],['f','FK'],['u','UQ'],['n','NULL']].map(([k,l])=>`<label class="ck"><input type="checkbox" data-act="cflag" data-k="${k}"${c[2].includes(k)?' checked':''}>${l}</label>`).join('')}<span class="sp"></span><button data-act="cup" title="Lên">↑</button><button data-act="cdown" title="Xuống">↓</button><button class="danger" data-act="cdel" title="Xóa cột">✕</button></div>
+<input data-act="chint" value="${esc(c[3]||'')}" placeholder="ghi chú, hiện khi rê chuột"></div>`).join('')}
+<button data-act="cadd">+ Thêm cột</button>
+<h4>Ghi chú và ràng buộc <small>(mỗi dòng một mục)</small></h4>
+<textarea data-act="tnotes" rows="5">${esc(t.notes.join('\n'))}</textarea>
+<h4>Quan hệ đi ra (FK → PK)</h4>
+<div id="relbox">${relBox(t)}</div>`;
+}
+const panel=$('#panel');
+function after(structural){refresh();if(structural)renderPanel()}
+panel.addEventListener('change',e=>{
+ const el=e.target,act=el.dataset.act;if(!act)return;
+ const t=tbl(sel),ce=el.closest('.ce'),ci=ce?+ce.dataset.i:-1,rel=el.closest('.rel'),ri=rel?+rel.dataset.i:-1;
+ switch(act){
+  case 'tname':
+   if(renameTable(t.id,el.value.trim())){refresh();$('#ptitle').textContent=sel;renderRel()}else el.value=t.id;break;
+  case 'tdesc':t.desc=el.value;refresh();break;
+  case 'tcol':t.col=+el.value;refresh();break;
+  case 'tnotes':t.notes=el.value.split('\n').map(s=>s.trim()).filter(Boolean);refresh();break;
+  case 'cname':{
+   const old=t.cols[ci][0];
+   if(renameColumn(t,old,el.value.trim())){refresh();renderRel()}else el.value=old;break}
+  case 'ctype':t.cols[ci][1]=el.value.trim();refresh();break;
+  case 'chint':t.cols[ci][3]=el.value;refresh();break;
+  case 'cflag':{
+   const k=el.dataset.k,c=t.cols[ci];
+   c[2]=el.checked?(c[2].includes(k)?c[2]:c[2]+k):c[2].replace(k,'');refresh();break}
+  case 'rcol':M.R[ri][1]=el.value;refresh();break;
+  case 'rtable':{const tt=tbl(el.value);M.R[ri][2]=tt.id;M.R[ri][3]=pkCol(tt);refresh();renderRel();break}
+  case 'rtcol':M.R[ri][3]=el.value;refresh();break;
+  case 'ename':{
+   const e0=M.ENUMS[ci],nu=el.value.trim();
+   if(!ident(nu)){toast('Tên enum không hợp lệ.');el.value=e0[0];break}
+   if(M.ENUMS.some((x,i)=>x[0]===nu&&i!==ci)){toast('Đã có enum tên '+nu+'.');el.value=e0[0];break}
+   M.T.forEach(x=>x.cols.forEach(c=>{if(c[1]===e0[0])c[1]=nu}));e0[0]=nu;refresh();break}
+  case 'evals':M.ENUMS[ci][1]=el.value.split(',').map(s=>s.trim()).filter(Boolean);refresh();break;
+ }
+});
+panel.addEventListener('click',e=>{
+ const b=e.target.closest('button[data-act]');if(!b)return;
+ const act=b.dataset.act,t=tbl(sel),ce=b.closest('.ce'),ci=ce?+ce.dataset.i:-1,rel=b.closest('.rel'),ri=rel?+rel.dataset.i:-1;
+ const move=(arr,i,d)=>{const j=i+d;if(j<0||j>=arr.length)return false;[arr[i],arr[j]]=[arr[j],arr[i]];return true};
+ switch(act){
+  case 'tup':case 'tdown':{
+   const same=M.T.filter(x=>x.col===t.col),k=same.indexOf(t),o=same[k+(act==='tup'?-1:1)];
+   if(o){const a=M.T.indexOf(t),c=M.T.indexOf(o);[M.T[a],M.T[c]]=[M.T[c],M.T[a]];after(false)}break}
+  case 'tdel':
+   if(!confirm('Xóa bảng '+t.id+' và các quan hệ liên quan?'))break;
+   M.R=M.R.filter(r=>r[0]!==t.id&&r[2]!==t.id);delete M.PERM[t.id];M.T=M.T.filter(x=>x!==t);sel=null;after(true);break;
+  case 'cadd':{
+   let n=1;while(t.cols.some(c=>c[0]==='cot_'+n))n++;
+   t.cols.push(['cot_'+n,'text','','']);after(true);break}
+  case 'cup':if(move(t.cols,ci,-1))after(true);break;
+  case 'cdown':if(move(t.cols,ci,1))after(true);break;
+  case 'cdel':{
+   const name=t.cols[ci][0],n=M.R.filter(r=>(r[0]===t.id&&r[1]===name)||(r[2]===t.id&&r[3]===name)).length;
+   if(!confirm('Xóa cột '+name+(n?' và '+n+' quan hệ liên quan':'')+'?'))break;
+   M.R=M.R.filter(r=>!((r[0]===t.id&&r[1]===name)||(r[2]===t.id&&r[3]===name)));
+   t.cols.splice(ci,1);after(true);break}
+  case 'radd':{
+   if(!t.cols.length){toast('Bảng chưa có cột.');break}
+   const tt=M.T.find(x=>x!==t)||t;
+   M.R.push([t.id,t.cols[0][0],tt.id,pkCol(tt)]);refresh();renderRel();break}
+  case 'rdel':M.R.splice(ri,1);refresh();renderRel();break;
+  case 'eadd':{
+   let n=1;while(M.ENUMS.some(x=>x[0]==='enum_'+n))n++;
+   M.ENUMS.push(['enum_'+n,['GIA_TRI_1']]);after(true);break}
+  case 'edel':{
+   const e0=M.ENUMS[ci],used=M.T.reduce((s,x)=>s+x.cols.filter(c=>c[1]===e0[0]).length,0);
+   if(!confirm('Xóa enum '+e0[0]+(used?` (đang dùng ở ${used} cột, kiểu của các cột đó giữ nguyên chữ)`:'')+'?'))break;
+   M.ENUMS.splice(ci,1);after(true);break}
+ }
+});
+
+/* ---------- Thanh công cụ ---------- */
+function setEdit(on){
+ editMode=on;document.body.classList.toggle('edit',on);
+ $('#bEdit').textContent=on?'Thoát chế độ sửa':'Chế độ sửa';
+ if(!on){sel=null;renderERD()}
+ else renderPanel();
+ requestAnimationFrame(()=>layout(!zoomed));
+}
+$('#bEdit').onclick=()=>setEdit(!editMode);
+$('#bAddT').onclick=()=>{newTable();refresh();renderPanel();const c=stage.querySelector('.card.sel');if(c)c.scrollIntoView({block:'nearest',inline:'nearest'})};
+$('#bExp').onclick=()=>{
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(M,null,2)],{type:'application/json'}));
+ a.download='dkhp-erd.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+/* ---------- Nhập JSON ---------- */
+const dlg=$('#dImp'),tImp=$('#tImp'),iMsg=$('#iMsg'),iOk=$('#iOk');
+let modeTouched=false,cur=null;
+$('#iEx').textContent=`{
+  "tables": [
+    {
+      "name": "lecturer",
+      "description": "Giảng viên",
+      "column": 3,
+      "columns": [
+        { "name": "id", "type": "bigint", "pk": true },
+        { "name": "full_name", "type": "varchar(100)" },
+        { "name": "email", "type": "varchar(120)", "unique": true, "nullable": true, "note": "ghi chú hiện khi rê chuột" }
+      ],
+      "notes": ["UNIQUE (email)"]
+    },
+    {
+      "name": "lecturer_phone",
+      "columns": [
+        { "name": "lecturer_id", "type": "bigint", "pk": true },
+        { "name": "phone", "type": "varchar(20)", "pk": true }
+      ]
+    }
+  ],
+  "relations": [
+    { "from": "lecturer_phone.lecturer_id", "to": "lecturer.id" }
+  ],
+  "enums": [
+    { "name": "day_kind", "values": ["WEEKDAY", "WEEKEND"] }
+  ]
+}`;
+const modeVal=()=>document.querySelector('input[name=imode]:checked').value;
+function parseImport(text){
+ let s;try{s=JSON.parse(text)}catch(e){throw new Error('Không đọc được JSON: '+e.message)}
+ const errs=[],bad=m=>errs.push(m);
+ let fmt,tables,rels,enums=null,perm=null,extra=null;
+ try{
+  if(s&&Array.isArray(s.T)){
+   fmt='full';
+   tables=s.T.map(t=>({id:t.id,col:Number.isInteger(t.col)&&t.col>=0&&t.col<=3?t.col:null,desc:String(t.desc||''),cols:(t.cols||[]).map(c=>[c[0],c[1]||'text',c[2]||'',c[3]||'']),notes:(t.notes||[]).map(String)}));
+   rels=(s.R||[]).map(r=>r.slice(0,4));
+   if(Array.isArray(s.ENUMS))enums=s.ENUMS.map(e=>[e[0],(e[1]||[]).map(String)]);
+   if(s.PERM&&typeof s.PERM==='object')perm=s.PERM;
+   extra={};['FLOWS','INV','EXCL','ASSUME'].forEach(k=>{if(Array.isArray(s[k]))extra[k]=s[k]});
+  }else{
+   fmt='simple';
+   const list=Array.isArray(s)?s:s&&s.tables;
+   if(!Array.isArray(list))throw new Error('Cần mảng "tables", hoặc object có "T" và "R" như file xuất từ trang này.');
+   tables=list.map(t=>({id:t.name,col:Number.isInteger(t.column)&&t.column>=1&&t.column<=4?t.column-1:null,desc:String(t.description||''),
+    cols:(t.columns||[]).map(c=>[c.name,c.type||'text',(c.pk?'p':'')+(c.fk?'f':'')+(c.unique?'u':'')+(c.nullable?'n':''),String(c.note||'')]),notes:(t.notes||[]).map(String)}));
+   rels=(Array.isArray(s)?[]:(s.relations||[])).map(r=>{const a=String(r.from||'').split('.'),b=String(r.to||'').split('.');return[a[0],a[1],b[0],b[1]]});
+   if(!Array.isArray(s)&&Array.isArray(s.enums))enums=s.enums.map(e=>[e.name,(e.values||[]).map(String)]);
+  }
+ }catch(e){if(e.message.startsWith('Cần mảng'))throw e;throw new Error('Cấu trúc JSON không đúng: '+e.message)}
+ const seen=new Set();
+ tables.forEach((t,i)=>{
+  if(typeof t.id!=='string'||!ident(t.id))return bad(`Bảng thứ ${i+1}: tên không hợp lệ.`);
+  if(seen.has(t.id))bad(`Bảng ${t.id}: bị trùng trong file.`);seen.add(t.id);
+  if(!t.cols.length)bad(`Bảng ${t.id}: chưa có cột nào.`);
+  const cs=new Set();
+  t.cols.forEach(c=>{
+   if(typeof c[0]!=='string'||!ident(c[0]))return bad(`Bảng ${t.id}: tên cột "${c[0]}" không hợp lệ.`);
+   if(cs.has(c[0]))bad(`Bảng ${t.id}: cột ${c[0]} bị trùng.`);cs.add(c[0]);
+   if(typeof c[1]!=='string'||!c[1].trim())bad(`Cột ${t.id}.${c[0]}: thiếu kiểu dữ liệu.`);
+   if(typeof c[2]!=='string'||/[^pfun]/.test(c[2]))bad(`Cột ${t.id}.${c[0]}: cờ chỉ gồm p, f, u, n.`);
+  });
+ });
+ (enums||[]).forEach(e=>{if(typeof e[0]!=='string'||!ident(e[0]))bad(`Enum "${e[0]}": tên không hợp lệ.`)});
+ rels.forEach(r=>{if(r.length<4||r.some(x=>typeof x!=='string'||!x))bad('Quan hệ thiếu thông tin: '+JSON.stringify(r))});
+ if(errs.length)throw new Error(errs.slice(0,6).join('\n')+(errs.length>6?`\n…và ${errs.length-6} lỗi khác`:''));
+ return{fmt,tables,rels,enums,perm,extra};
+}
+function placeNew(nx){
+ const c=[0,0,0,0];nx.T.forEach(t=>{if(t.col!=null)c[t.col]++});
+ nx.T.forEach(t=>{if(t.col==null){const k=c.indexOf(Math.min(...c));t.col=k;c[k]++}});
+}
+function plan(p,mode){
+ const nx=clone(M),errs=[];
+ let nt=0,nc=0,skip=0,nr=0;
+ if(mode==='replace'){
+  const old=nx.PERM;
+  nx.T=clone(p.tables);nx.R=[];
+  if(p.enums)nx.ENUMS=clone(p.enums);
+  nx.PERM={};nx.T.forEach(t=>{nx.PERM[t.id]=(p.perm&&Array.isArray(p.perm[t.id])&&p.perm[t.id])||old[t.id]||['A','','']});
+  if(p.extra)Object.assign(nx,clone(p.extra));
+  nt=nx.T.length;
+ }else{
+  clone(p.tables).forEach(t=>{
+   const e=nx.T.find(x=>x.id===t.id);
+   if(!e){nx.T.push(t);nx.PERM[t.id]=(p.perm&&Array.isArray(p.perm[t.id])&&p.perm[t.id])||['A','',''];nt++;return}
+   t.cols.forEach(c=>{if(e.cols.some(k=>k[0]===c[0]))skip++;else{e.cols.push(c);nc++}});
+   t.notes.forEach(n=>{if(!e.notes.includes(n))e.notes.push(n)});
+  });
+  (p.enums||[]).forEach(en=>{if(nx.ENUMS.some(x=>x[0]===en[0]))skip++;else nx.ENUMS.push(clone(en))});
+ }
+ placeNew(nx);
+ const find=(t,c)=>{const x=nx.T.find(y=>y.id===t);return x&&x.cols.find(k=>k[0]===c)};
+ p.rels.forEach(r=>{
+  if(!find(r[0],r[1])||!find(r[2],r[3]))return errs.push(`Quan hệ ${r[0]}.${r[1]} → ${r[2]}.${r[3]}: bảng hoặc cột không tồn tại.`);
+  if(nx.R.some(x=>x[0]===r[0]&&x[1]===r[1]&&x[2]===r[2]&&x[3]===r[3])){skip++;return}
+  nx.R.push(r);nr++;
+  const c=find(r[0],r[1]);if(!c[2].includes('f'))c[2]+='f';
+ });
+ if(errs.length)throw new Error(errs.slice(0,6).join('\n')+(errs.length>6?`\n…và ${errs.length-6} lỗi khác`:''));
+ const summary=mode==='replace'
+  ?`Hợp lệ. Thay toàn bộ bằng ${nx.T.length} bảng, ${nx.R.length} quan hệ.`
+  :`Hợp lệ. Thêm ${nt} bảng mới, ${nc} cột vào bảng có sẵn, ${nr} quan hệ`+(skip?`, bỏ qua ${skip} mục đã có.`:'.');
+ return{next:nx,summary};
+}
+function checkImport(){
+ cur=null;iOk.disabled=true;
+ const txt=tImp.value.trim();
+ if(!txt){iMsg.className='none';iMsg.textContent='Chưa có nội dung.';return}
+ try{
+  const p=parseImport(txt);
+  if(!modeTouched)document.querySelector(`input[name=imode][value=${p.fmt==='full'?'replace':'merge'}]`).checked=true;
+  cur=plan(p,modeVal());
+  iMsg.className='ok';iMsg.textContent=cur.summary;iOk.disabled=false;
+ }catch(e){iMsg.className='err';iMsg.textContent=e.message}
+}
+$('#bImp').onclick=()=>{tImp.value='';modeTouched=false;checkImport();dlg.showModal();tImp.focus()};
+tImp.addEventListener('input',checkImport);
+document.querySelectorAll('input[name=imode]').forEach(r=>r.addEventListener('change',()=>{modeTouched=true;checkImport()}));
+$('#iFile').onclick=()=>$('#fImp').click();
+$('#fImp').onchange=e=>{
+ const f=e.target.files[0];if(!f)return;
+ const rd=new FileReader();
+ rd.onload=()=>{tImp.value=rd.result;modeTouched=false;checkImport()};
+ rd.readAsText(f);e.target.value='';
+};
+$('#iCancel').onclick=()=>dlg.close();
+iOk.onclick=()=>{
+ if(!cur)return;
+ if(modeVal()==='replace'&&!confirm('Thay toàn bộ lược đồ hiện tại? Chỉnh sửa chưa xuất ra file sẽ mất.'))return;
+ M=cur.next;sel=null;refresh();renderPanel();dlg.close();toast(cur.summary.replace('Hợp lệ. ','Đã nhập: '));
+};
+$('#bRst').onclick=()=>{
+ if(!confirm('Đặt lại về lược đồ đề xuất ban đầu? Mọi chỉnh sửa trong trình duyệt này sẽ mất.'))return;
+ M=clone(DEF);sel=null;try{localStorage.removeItem(KEY)}catch(e){}
+ refresh();renderPanel();
+};
+
+/* ---------- Tab ---------- */
+function show(k){
+ document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+ document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('on',s.id==='tab-'+k));
+ try{localStorage.setItem('dkhp-erd-tab',k)}catch(e){}
+ if(k==='erd')requestAnimationFrame(()=>{layout(!sized||!zoomed)});
+}
+$('#tabs').addEventListener('click',e=>{if(e.target.dataset.k)show(e.target.dataset.k)});
+
+let start='erd';try{start=localStorage.getItem('dkhp-erd-tab')||'erd'}catch(e){}
+renderPerm();renderFlow();renderInv();renderERD();
+show(TABS.some(t=>t[0]===start)?start:'erd');
+</script>
+</body>
+</html>
