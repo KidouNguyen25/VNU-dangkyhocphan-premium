@@ -1,0 +1,68 @@
+sequenceDiagram
+    autonumber
+    actor SV as Sinh viên (Swagger UI)
+    participant MW as Middleware
+    participant API as Controller
+    participant SVC as EnrollmentService
+    participant VAL as Chuỗi kiểm tra
+    participant DB as PostgreSQL
+
+    SV->>MW: POST /api/v1/enrollments (Bearer JWT, Idempotency-Key, sectionIds)
+    MW->>MW: Kiểm JWT, vai trò STUDENT, giới hạn tốc độ, gán request ID
+    alt Token sai hoặc quá giới hạn
+        MW-->>SV: 401 hoặc 403 hoặc 429 (Retry-After)
+    end
+    MW->>API: Chuyển yêu cầu, accountId lấy từ JWT
+    API->>API: Kiểm body và header
+    alt Body hoặc khóa sai định dạng
+        API-->>SV: 400 VALIDATION_ERROR
+    end
+    API->>SVC: register(accountId, key, sectionIds)
+    SVC->>SVC: requestHash = SHA-256(body chuẩn hóa)
+
+    SVC->>DB: BEGIN
+    SVC->>DB: INSERT idempotency_record (PROCESSING) ON CONFLICT DO NOTHING
+
+    alt Khóa đã tồn tại
+        SVC->>DB: SELECT idempotency_record FOR UPDATE (chờ giao dịch đang giữ khóa)
+        DB-->>SVC: state, request_hash, response_status, response_body
+        alt Hash khác
+            SVC->>DB: ROLLBACK
+            SVC-->>SV: 409 IDEMPOTENCY_KEY_REUSED
+        else Hash giống và đã COMPLETED
+            SVC->>DB: ROLLBACK
+            SVC-->>SV: Phát lại status và body đã lưu
+        end
+    else Khóa mới
+        SVC->>DB: SELECT account FOR UPDATE (tuần tự hóa theo sinh viên)
+        SVC->>DB: SELECT đợt OPEN, kiểm now() trong opens_at đến closes_at
+        SVC->>DB: SELECT section WHERE id IN (...) ORDER BY id FOR UPDATE
+        DB-->>SVC: Các lớp đã khóa, lịch đã đăng ký, tổng tín chỉ hiện có
+
+        SVC->>VAL: Chạy lần lượt các luật
+        Note over VAL: 1 Thời gian đợt (403)<br/>2 Lớp tồn tại và đúng term<br/>3 Trùng lớp (409)<br/>4 Trùng học phần (409)<br/>5 Trùng ca bằng bitmask (422)<br/>6 Giới hạn tín chỉ (422)
+
+        alt Một luật không đạt
+            VAL-->>SVC: Lỗi nghiệp vụ kèm mã và details
+            SVC->>DB: UPDATE idempotency_record (COMPLETED, status và body lỗi)
+            SVC->>DB: COMMIT
+            SVC-->>SV: 403 hoặc 409 hoặc 422
+        else Tất cả đạt
+            SVC->>DB: SAVEPOINT ghi_dang_ky
+            loop Mỗi lớp theo id tăng dần
+                SVC->>DB: UPDATE section SET enrolled_count + 1 WHERE enrolled_count nhỏ hơn capacity
+                alt Không còn chỗ (0 dòng được cập nhật)
+                    SVC->>DB: ROLLBACK TO SAVEPOINT ghi_dang_ky
+                    SVC->>DB: UPDATE idempotency_record (COMPLETED, 409 SECTION_FULL)
+                    SVC->>DB: COMMIT
+                    SVC-->>SV: 409 SECTION_FULL
+                end
+                SVC->>DB: INSERT enrollment (ENROLLED)
+            end
+            SVC->>DB: UPDATE idempotency_record (COMPLETED, 201 và danh sách enrollmentId)
+            SVC->>DB: COMMIT
+            SVC-->>SV: 201 items (enrollmentId, sectionId)
+        end
+    end
+
+    Note over SVC,DB: Lỗi hệ thống 5xx thì ROLLBACK toàn bộ, không lưu phản hồi, máy khách gửi lại được

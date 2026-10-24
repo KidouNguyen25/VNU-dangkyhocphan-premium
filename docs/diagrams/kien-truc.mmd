@@ -1,0 +1,34 @@
+flowchart LR
+    subgraph TS["Mạng riêng Tailscale (không ra Internet)"]
+        subgraph CL["Hai máy khách (mỗi máy 5.000 tài khoản giả)"]
+            SW["Swagger UI / OpenAPI"]
+            LT["Công cụ tải"]
+        end
+
+        subgraph BE["Máy backend (modular monolith, đồng bộ)"]
+            MW["Middleware<br/>JWT, vai trò, giới hạn tốc độ,<br/>request ID, ETag"]
+            CT["Controller<br/>10 endpoint /api/v1,<br/>kiểm body, ánh xạ lỗi"]
+            SV["Service (Transaction Script)<br/>Auth, Registration,<br/>Enrollment, Admin"]
+            VL["Chuỗi kiểm tra<br/>thời gian, trùng lớp, trùng học phần,<br/>trùng ca, tín chỉ"]
+            RP["Repository mỏng<br/>khóa account rồi section theo id,<br/>UPDATE có điều kiện"]
+            ID["Idempotent Receiver<br/>băm yêu cầu, phát lại phản hồi"]
+        end
+
+        subgraph DBM["Máy cơ sở dữ liệu"]
+            PG[("PostgreSQL<br/>account, course, registration_period,<br/>section, enrollment, idempotency_record")]
+        end
+    end
+
+    SW -->|HTTPS/HTTP + JWT| MW
+    LT -->|HTTP + JWT| MW
+    MW --> CT --> SV
+    SV --> VL
+    SV --> ID
+    SV --> RP
+    ID --> RP
+    VL --> RP
+    RP -->|một giao dịch ngắn| PG
+
+    classDef note fill:#fff8e6,stroke:#c9a227,color:#333
+    N1["Không dùng Redis, queue, worker, 202.<br/>Số chỗ trong cache/ETag chỉ để hiển thị,<br/>quyết định nhận chỗ nằm trong giao dịch PostgreSQL."]:::note
+    N1 -.- SV

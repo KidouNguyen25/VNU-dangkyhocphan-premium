@@ -1,0 +1,41 @@
+sequenceDiagram
+    autonumber
+    actor SV as Sinh viên (Swagger UI)
+    participant MW as Middleware
+    participant API as Controller
+    participant SVC as EnrollmentService
+    participant DB as PostgreSQL
+
+    SV->>MW: DELETE /api/v1/enrollments/{enrollmentId} (Bearer JWT)
+    MW->>MW: Kiểm JWT, vai trò STUDENT, giới hạn tốc độ, gán request ID
+    alt Token sai hoặc quá giới hạn
+        MW-->>SV: 401 hoặc 403 hoặc 429 (Retry-After)
+    end
+    MW->>API: Chuyển yêu cầu, accountId lấy từ JWT
+    API->>API: Kiểm enrollmentId là số nguyên dương
+    alt enrollmentId sai định dạng
+        API-->>SV: 400 VALIDATION_ERROR
+    end
+    API->>SVC: cancel(accountId, enrollmentId)
+
+    SVC->>DB: BEGIN
+    SVC->>DB: SELECT account FOR UPDATE (tuần tự hóa theo sinh viên)
+    SVC->>DB: SELECT đợt OPEN, kiểm now() trong opens_at đến closes_at
+    alt Ngoài khung đăng ký hoặc không có đợt OPEN
+        SVC->>DB: ROLLBACK
+        SVC-->>SV: 403 REGISTRATION_NOT_OPEN
+    end
+
+    SVC->>DB: SELECT enrollment WHERE id khớp, student_id khớp, status ENROLLED
+    alt Không có dòng nào (đã hủy, không tồn tại hoặc của người khác)
+        SVC->>DB: ROLLBACK
+        SVC-->>SV: 404 ENROLLMENT_NOT_FOUND
+    else Có dòng
+        SVC->>DB: SELECT section FOR UPDATE (khóa account trước, section sau)
+        SVC->>DB: DELETE enrollment WHERE id khớp
+        SVC->>DB: UPDATE section SET enrolled_count - 1
+        SVC->>DB: COMMIT
+        SVC-->>SV: 204 No Content
+    end
+
+    Note over SVC,DB: Hủy lần hai cùng id không còn dòng nên trả 404 và không giảm enrolled_count thêm.<br/>Lượt của người khác cũng trả 404 để không lộ id nào có thật.<br/>Luồng hủy không dùng idempotency_record.<br/>Lỗi 5xx thì ROLLBACK toàn bộ, gửi lại được.
