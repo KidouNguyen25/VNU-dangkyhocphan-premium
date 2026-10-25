@@ -94,7 +94,7 @@ Maven Wrapper có lệnh kiểm thử và đóng gói:
 
 Bộ kiểm thử dùng PostgreSQL tạm thời, không kết nối database triển khai. Yêu cầu Windows và giới hạn môi trường được ghi trong [docs/k5-backend.md](docs/k5-backend.md).
 
-Docker Compose hiện cần migration, tài khoản API và kiểm chứng triển khai trước khi chạy toàn hệ thống. `.env.example` chỉ chứa giá trị mẫu; thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` trước khi dùng. Không commit file `.env`.
+Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` (API từ chối giá trị mẫu `change-me...`), rồi `docker compose up --build`. Lần đầu, PostgreSQL chạy hai script tạm trong [docker/initdb/](docker/initdb/): `tmp1_init.sql` tạo schema và `tmp2_roles.sh` tạo tài khoản API với quyền tối thiểu. Script chỉ chạy khi volume trống; sau khi sửa script, chạy `docker compose down -v` để dựng lại. Cấu hình này chưa được kiểm chứng end-to-end. Không commit file `.env`.
 
 ## Tài liệu
 
@@ -118,7 +118,8 @@ Docker Compose hiện cần migration, tài khoản API và kiểm chứng tri�
 | Backend Spring Boot, API, giao dịch và idempotency | Có |
 | Filter, phân quyền và giới hạn tốc độ | Có |
 | JWT HS256 qua TokenGateway | Đã triển khai; cần cấu hình `JWT_SECRET` |
-| Migration và dữ liệu dùng chung | Chờ bàn giao, chưa chạy production schema |
+| Schema và tài khoản API cho Docker | Có bản tạm (`docker/initdb`); migration chính thức chờ bàn giao |
+| Dữ liệu mẫu | Chưa |
 | Maven Wrapper và bộ kiểm thử | Có |
 | Docker Compose end-to-end | Chưa kiểm chứng |
 | Kiểm thử tải trên Kaggle CPU | Chưa thực hiện |
