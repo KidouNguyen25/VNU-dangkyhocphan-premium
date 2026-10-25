@@ -30,7 +30,12 @@ public class BackendConfig {
     }
     @Bean public RegistrationService registrationService(PostgresRepository repo, ObjectProvider<TokenGateway> tokens, Clock clock) {
         var encoder = new BCryptPasswordEncoder(10);
-        return new RegistrationService(repo, tokens.getIfAvailable(BackendConfig::missingTokenGateway), encoder::matches, encoder.encode(UUID.randomUUID().toString()), clock);
+        return new RegistrationService(repo,
+                tokens.getIfAvailable(BackendConfig::missingTokenGateway),
+                (raw, hash) -> hash.equals(raw) || encoder.matches(raw, hash), // TODO: Xoá cái check plain text(e tù lm r)
+                encoder.encode(UUID.randomUUID().toString()),
+                clock
+        );
     }
     public static TokenGateway missingTokenGateway() {
         return new TokenGateway() {

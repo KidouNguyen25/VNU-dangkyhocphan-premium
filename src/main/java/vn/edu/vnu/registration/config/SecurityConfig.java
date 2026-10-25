@@ -29,6 +29,7 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
+                    .requestMatchers("/", "/index.html", "/*.html", "/*.js", "/*.css").permitAll() //TODO: Nào có trang login.html xoá cái này :3
                 .requestMatchers(HttpMethod.GET, "/api/v1/registration", "/api/v1/sections").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
