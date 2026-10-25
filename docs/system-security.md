@@ -4,7 +4,7 @@
 
 ## Phạm vi và giả định
 
-- Backend Spring Boot (Java 21) và PostgreSQL, chạy bằng Docker.
+- Backend Spring Boot (Java 17, chạy được trên 21) và PostgreSQL, chạy bằng Docker.
 - Chạy qua Tailscale trên bốn máy, không Internet công cộng.
 - Giao tiếp HTTP trong mạng Tailscale. Tailscale mã hóa đường truyền nên pha 1 không dùng HTTPS riêng.
 - Không có giao diện riêng; thử API qua Swagger UI và công cụ thử tải.

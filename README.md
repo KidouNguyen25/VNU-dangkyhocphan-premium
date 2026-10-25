@@ -4,104 +4,121 @@ Bài tập lớn môn Kiến trúc phần mềm.
 
 ## Giới thiệu
 
-Backend cho hệ thống đăng ký học phần. Mục tiêu là xây dựng và giải thích được kiến trúc của một hệ thống đăng ký có kiểm tra ràng buộc chính xác: không đăng ký trùng và không vượt sĩ số khi nhiều sinh viên đăng ký đồng thời.
+Backend đăng ký học phần. Hệ thống phải giữ đúng sĩ số, tránh đăng ký trùng khi nhiều sinh viên gửi yêu cầu đồng thời.
 
 Dự án gồm hai pha:
-- **Pha 1:** xây dựng hệ thống với các chức năng cơ bản.
-- **Pha 2:** cải tiến theo các thuộc tính chất lượng, có đánh giá trước và sau cải tiến.
+
+- **Pha 1:** xây dựng hệ thống với chức năng cơ bản.
+- **Pha 2:** cải tiến thuộc tính chất lượng, đánh giá trước và sau cải tiến.
 
 ## Phạm vi Pha 1
 
 - Đăng nhập, phát JWT 60 phút.
-- Xem thông tin bản thân, đợt đăng ký, danh sách lớp học phần (lọc, phân trang), lượt đăng ký.
-- Đăng ký một hoặc nhiều lớp trong một request (tất cả hoặc không), có `Idempotency-Key`.
+- Xem thông tin bản thân, đợt đăng ký, danh sách lớp học phần và lượt đăng ký.
+- Đăng ký một hoặc nhiều lớp trong một request theo nguyên tắc tất cả hoặc không; hỗ trợ Idempotency-Key.
 - Hủy đăng ký.
-- Quản trị: cập nhật đợt đăng ký và lớp học phần.
-- Kiểm tra sức khỏe dịch vụ (`/api/v1/health`, chỉ nhóm phát triển).
-- REST API, JSON, OpenAPI 3.x, Swagger UI. Không có giao diện người dùng riêng.
+- Quản trị cập nhật đợt đăng ký và lớp học phần.
+- Kiểm tra sức khỏe dịch vụ.
+- REST API, JSON, OpenAPI 3.x, Swagger UI. Không có giao diện riêng.
 
-Chi tiết nghiệp vụ, ràng buộc và danh sách endpoint: [docs/phase-1-scope.md](docs/phase-1-scope.md).
+Chi tiết nghiệp vụ, ràng buộc và endpoint: [docs/phase-1-scope.md](docs/phase-1-scope.md).
 
 ## Kiến trúc và công nghệ
 
 | Thành phần | Lựa chọn |
 | --- | --- |
-| Ngôn ngữ, framework | Java 21, Spring Boot |
+| Ngôn ngữ, framework | Java 17+, Spring Boot 3.5.7, Spring Security |
+| Truy cập dữ liệu | Spring JDBC, data mapper |
 | Cơ sở dữ liệu | PostgreSQL |
+| Build | Maven Wrapper |
 | Đóng gói | Docker, Docker Compose |
-| Mạng | Tailscale, không mở ra Internet công cộng |
+| Mạng | Tailscale; không mở Internet công cộng |
 
-Hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker. PostgreSQL là nguồn có thẩm quyền; quyết định nhận chỗ nằm trong một giao dịch ngắn. Phân tầng: API → Nghiệp vụ → Truy cập dữ liệu.
+Phân tầng: API → nghiệp vụ → truy cập dữ liệu. Tầng nghiệp vụ không phụ thuộc Spring, HTTP hoặc JDBC. PostgreSQL là nguồn dữ liệu có thẩm quyền; hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker.
 
-Sơ đồ kiến trúc: [docs/diagrams/kien-truc.mmd](docs/diagrams/kien-truc.mmd). 
-Luồng đăng ký chi tiết (khóa, idempotency, rollback): [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-ky.mmd).
+Sơ đồ kiến trúc: [docs/diagrams/kien-truc.mmd](docs/diagrams/kien-truc.mmd).
+Luồng đăng ký: [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-ky.mmd).
 
 ### Luồng hoạt động trên kiến trúc
 
-![Đường đi của một yêu cầu: máy khách, middleware, controller, service, repository, PostgreSQL, rồi phản hồi sau COMMIT](docs/assets/luong-kien-truc.gif)
-
-Yêu cầu đi qua middleware (JWT, vai trò, giới hạn tốc độ), controller, service, repository rồi PostgreSQL. Phản hồi chỉ trả về sau khi giao dịch COMMIT.
+![Đường đi của yêu cầu qua middleware, controller, service, repository và PostgreSQL](docs/assets/luong-kien-truc.gif)
 
 ### Luồng đăng ký
 
-![Luồng POST /api/v1/enrollments: kiểm JWT, ghi idempotency_record, khóa account và section, kiểm 5 luật, UPDATE và INSERT, COMMIT, trả 201](docs/assets/luong-dang-ky.gif)
+![Đăng ký: xác thực, ghi idempotency, khóa dữ liệu, kiểm ràng buộc, commit](docs/assets/luong-dang-ky.gif)
 
-Đăng ký một hoặc nhiều lớp trong một giao dịch: ghi `idempotency_record`, khóa `account` rồi `section` theo `id`, kiểm 5 luật, tăng `enrolled_count` nếu còn chỗ, ghi `enrollment`, COMMIT rồi trả 201. Lỗi nghiệp vụ hoàn tác phần đăng ký và vẫn lưu phản hồi lỗi; lỗi 5xx hoàn tác toàn bộ.
+Đăng ký nhiều lớp trong một giao dịch. Hệ thống khóa tài khoản và lớp theo thứ tự cố định, kiểm tra ràng buộc, cập nhật sĩ số rồi commit. Lỗi nghiệp vụ lưu phản hồi idempotency; lỗi nội bộ rollback toàn bộ.
 
 ### Luồng hủy
 
-![Luồng DELETE /api/v1/enrollments/{id}: khóa account, kiểm đợt OPEN, tìm lượt ENROLLED, xóa, giảm enrolled_count, COMMIT, trả 204](docs/assets/luong-huy.gif)
+![Hủy: khóa tài khoản, tìm lượt của sinh viên, xóa lượt và hoàn chỗ](docs/assets/luong-huy.gif)
 
-Hủy trong một giao dịch: khóa `account`, kiểm đợt `OPEN`, tìm lượt `ENROLLED` của chính sinh viên, khóa `section`, xóa dòng, giảm `enrolled_count` đúng một lần, trả 204. Không có lượt khớp trả 404 `ENROLLMENT_NOT_FOUND`. Luồng hủy không dùng `idempotency_record`.
+Hủy trong một giao dịch. Hệ thống chỉ hủy lượt của sinh viên đăng nhập và giảm sĩ số đúng một lần.
 
 ### Sơ đồ cơ sở dữ liệu
 
-![Sơ đồ ERD gồm 6 bảng: account, idempotency_record, enrollment, course, section, registration_period](docs/assets/so-do-co-so-du-lieu.png)
+![ERD gồm sáu bảng account, idempotency_record, enrollment, course, section và registration_period](docs/assets/so-do-co-so-du-lieu.png)
 
-6 bảng PostgreSQL: `account`, `course`, `registration_period`, `section`, `enrollment`, `idempotency_record`. Bản tương tác (rê chuột làm nổi quan hệ, các tab quyền, cách ghi và truy vấn, ràng buộc) nằm ở [docs/so-do-co-so-du-lieu.html](docs/so-do-co-so-du-lieu.html); tải về và mở bằng trình duyệt.
+ERD tương tác: [docs/so-do-co-so-du-lieu.html](docs/so-do-co-so-du-lieu.html).
+
+## Bảo mật
+
+- API dùng filter xác thực và phân quyền; endpoint cá nhân cần JWT, endpoint quản trị cần vai trò ADMIN.
+- GET registration và GET sections công khai trong mạng Tailscale; chỉ trả dữ liệu chung.
+- Swagger UI và OpenAPI mở để thử API trong môi trường nhóm. API được bảo vệ vẫn cần JWT.
+- Container chạy bằng user không phải root.
+- JWT thật cần tích hợp qua TokenGateway. Khi chưa có bean này, thao tác ký hoặc xác minh token trả 503 AUTH_NOT_CONFIGURED.
+
+Chi tiết: [docs/system-security.md](docs/system-security.md) và [docs/k5-backend.md](docs/k5-backend.md).
+
+## Chạy backend
+
+Yêu cầu JDK 17+ và PostgreSQL có schema đã tạo bằng migration của nhóm. Spring Boot không tự nạp file .env; đặt biến môi trường trong shell hoặc IDE. DB_URL, DB_USER và DB_PASSWORD phải trỏ tới tài khoản API đã được cấp quyền tối thiểu.
+
+Ví dụ PowerShell:
+
+    $env:DB_URL = 'jdbc:postgresql://127.0.0.1:5432/dkhp'
+    $env:DB_USER = 'dkhp_api'
+    $env:DB_PASSWORD = '<mat-khau-cuc-bo>'
+    .\mvnw.cmd spring-boot:run
+
+- Swagger UI: http://127.0.0.1:8080/swagger-ui/index.html
+- OpenAPI: http://127.0.0.1:8080/v3/api-docs
+- Health: http://127.0.0.1:8080/api/v1/health; chỉ IP trong danh sách cho phép.
+
+Maven Wrapper có lệnh kiểm thử và đóng gói:
+
+    .\mvnw.cmd test
+    .\mvnw.cmd package
+
+Bộ kiểm thử dùng PostgreSQL tạm thời, không kết nối database triển khai. Yêu cầu Windows và giới hạn môi trường được ghi trong [docs/k5-backend.md](docs/k5-backend.md).
+
+Docker Compose hiện cần migration, tài khoản API và kiểm chứng triển khai trước khi chạy toàn hệ thống. File .env.example chứa giá trị mẫu; thay mật khẩu trước khi dùng. Không commit file .env.
 
 ## Tài liệu
 
 | Tài liệu | Nội dung |
 | --- | --- |
 | [docs/official-requirements.md](docs/official-requirements.md) | Đề bài và yêu cầu chính thức |
-| [docs/phase-1-scope.md](docs/phase-1-scope.md) | Phạm vi, nghiệp vụ, API, ràng buộc |
+| [docs/phase-1-scope.md](docs/phase-1-scope.md) | Phạm vi, nghiệp vụ, API và ràng buộc |
 | [docs/system-security.md](docs/system-security.md) | Phân tích bảo mật |
-| [docs/open-decisions.md](docs/open-decisions.md) | Các quyết định của nhóm |
+| [docs/open-decisions.md](docs/open-decisions.md) | Quyết định và vấn đề còn mở |
+| [docs/k5-backend.md](docs/k5-backend.md) | Bàn giao backend, JWT, API và kiểm thử |
 | [docs/diagrams/kien-truc.mmd](docs/diagrams/kien-truc.mmd) | Sơ đồ kiến trúc |
 | [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-ky.mmd) | Luồng đăng ký |
 | [docs/diagrams/luong-huy.mmd](docs/diagrams/luong-huy.mmd) | Luồng hủy |
-| [docs/so-do-co-so-du-lieu.html](docs/so-do-co-so-du-lieu.html) | Sơ đồ cơ sở dữ liệu (ERD), mở bằng trình duyệt |
-
-## Cách chạy
-
-Yêu cầu: Docker và Docker Compose.
-
-1. Clone repo.
-2. Tạo file cấu hình từ mẫu:
-   ```
-   cp .env.example .env
-   ```
-3. Sửa `.env`: đặt `POSTGRES_PASSWORD` và `JWT_SECRET` (sinh khóa bằng `openssl rand -base64 48`). Không commit `.env`.
-4. Chạy:
-   ```
-   docker compose up --build
-   ```
-5. Mở Swagger UI của API (địa chỉ sẽ ghi khi backend sẵn sàng). Mặc định API bind `127.0.0.1:8080`. Khi triển khai qua Tailscale, đặt `API_BIND_ADDR` và `DB_BIND_ADDR` thành IP Tailscale của máy.
+| [docs/so-do-co-so-du-lieu.html](docs/so-do-co-so-du-lieu.html) | ERD tương tác |
 
 ## Trạng thái
 
 | Hạng mục | Trạng thái |
 | --- | --- |
-| Đề bài, phạm vi, quyết định | Có |
-| Sơ đồ kiến trúc, luồng đăng ký và hủy, ERD | Có |
-| Phân tích bảo mật | Có |
-| `docker-compose.yml`, `.env.example` | Có, chưa chạy thử đầy đủ |
-| `Dockerfile` cho API | Chưa |
-| Khung project Spring Boot | Chưa |
-| Endpoint nghiệp vụ, giao dịch, idempotency | Chưa |
-| JWT, phân quyền, giới hạn tốc độ | Chưa |
-| Migration, dữ liệu mẫu | Chưa |
-| OpenAPI, Swagger UI | Chưa |
-| CI (GitHub Actions) | Chưa |
-| Kiểm thử đồng thời, idempotency, thử tải | Chưa |
+| Đề bài, phạm vi, sơ đồ và phân tích bảo mật | Có |
+| Backend Spring Boot, API, giao dịch và idempotency | Có |
+| Filter, phân quyền và giới hạn tốc độ | Có |
+| JWT thật qua TokenGateway | Chờ tích hợp |
+| Migration và dữ liệu dùng chung | Chờ bàn giao, chưa chạy production schema |
+| Maven Wrapper và bộ kiểm thử | Có |
+| Docker Compose end-to-end | Chưa kiểm chứng |
+| Kiểm thử tải trên Kaggle CPU | Chưa thực hiện |
+| CI | Chưa cấu hình |
