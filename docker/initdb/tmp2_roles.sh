@@ -8,6 +8,9 @@ psql -v ON_ERROR_STOP=1 \
 CREATE ROLE :"dbuser" LOGIN PASSWORD :'dbpass';
 GRANT CONNECT ON DATABASE :"dbname" TO :"dbuser";
 GRANT USAGE ON SCHEMA public TO :"dbuser";
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO :"dbuser";
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO :"dbuser";
+GRANT SELECT ON account, course TO :"dbuser";
+GRANT UPDATE (id) ON account TO :"dbuser";
+GRANT SELECT, INSERT, UPDATE ON registration_period, section, idempotency_record TO :"dbuser";
+GRANT SELECT, INSERT, UPDATE, DELETE ON enrollment TO :"dbuser";
+GRANT USAGE, SELECT ON SEQUENCE section_id_seq, enrollment_id_seq, idempotency_record_id_seq TO :"dbuser";
 SQL
