@@ -29,6 +29,8 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 app:
+  jwt:
+    secret: ${JWT_SECRET:}
   health-allowed-ips: ${HEALTH_ALLOWED_IPS:127.0.0.1,::1}
   rate-limit:
     ip: ${RATE_LIMIT_IP:600}
