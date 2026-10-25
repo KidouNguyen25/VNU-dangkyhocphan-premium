@@ -56,7 +56,7 @@
 ## Bảo vệ dữ liệu và cấu hình
 
 - Mật khẩu lưu dạng băm BCrypt.
-- Khóa JWT, mật khẩu DB, chuỗi kết nối nằm trong biến môi trường. Repo chỉ có `.env.example`.
+- `JWT_SECRET` HS256 phải là khóa ngẫu nhiên tối thiểu 32 byte; mật khẩu DB và chuỗi kết nối cũng nằm trong biến môi trường. `.env.example` chỉ chứa giá trị mẫu.
 - Container API chạy bằng người dùng không phải root.
 - Tài khoản DB của ứng dụng chỉ có quyền cần thiết; dữ liệu danh mục và tài khoản được nạp bằng tập lệnh riêng, không qua API.
 - Dọn `idempotency_record` hết hạn bằng job định kỳ, không qua API (D14).

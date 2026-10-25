@@ -2,7 +2,7 @@
 
 > Tài liệu mô tả phạm vi, hợp đồng tích hợp, cách chạy và kết quả kiểm chứng backend.
 
-Nhánh `feat/k5-backend` sử dụng Java Spring Boot. Đồng đội phụ trách JWT; backend cung cấp điểm tích hợp, không tự ký hoặc xác minh JWT. Backend chưa được triển khai lên máy nhóm hoặc đo tải qua Tailscale.
+Nhánh `feat/k5-backend` sử dụng Java Spring Boot. Backend có `JwtTokenGateway` để phát và xác minh JWT HS256. Chưa triển khai lên máy nhóm hoặc đo tải qua Tailscale.
 
 ## Phạm vi và cấu trúc
 
@@ -17,9 +17,9 @@ src/test/    PostgreSQL tạm, dữ liệu và ca kiểm thử
 
 `RegistrationService` chỉ phụ thuộc Java chuẩn và các cổng trong `Ports`. Repository dùng Spring JDBC với SQL tham số hóa; mỗi transaction dùng một connection do Spring quản lý. Backend không dùng JPA auto-DDL, Redis, queue, worker, bảng phụ hoặc mã phản hồi 202. `course.prerequisite` chỉ được trả về, không dùng để kiểm tra môn tiên quyết.
 
-## Tích hợp JWT
+## JWT và cấu hình khóa
 
-Đồng đội cung cấp **một Spring bean** triển khai `vn.edu.vnu.registration.domain.Ports.TokenGateway`:
+`JwtTokenGateway` triển khai `vn.edu.vnu.registration.domain.Ports.TokenGateway`:
 
 ```java
 public interface TokenGateway {
@@ -30,14 +30,16 @@ public interface TokenGateway {
 // Token(String accessToken, String tokenType, long expiresIn)
 ```
 
-- `issue`: phát JWT có thời hạn 60 phút, `tokenType = "Bearer"`, `expiresIn = 3600`, chứa `account.id` và vai trò `STUDENT` hoặc `ADMIN`. Nhóm cần thống nhất tên claim; API không phụ thuộc tên claim cụ thể.
-- `verify`: kiểm tra chữ ký, thuật toán, thời hạn và claim cần thiết; trả về `Identity` đã xác minh. Token sai hoặc hết hạn phải ném `BusinessException(401, "UNAUTHORIZED", ...)` hoặc exception xác thực. Không tin payload trước khi kiểm tra chữ ký.
+- `issue`: phát JWT HS256 có thời hạn 60 phút, `tokenType = "Bearer"`, `expiresIn = 3600`; claim `iss` là `vnu-course-registration`, `sub` là `account.id`, kèm `role`, `iat` và `exp`.
+- `verify`: chỉ chấp nhận HS256; kiểm tra chữ ký, issuer, thời hạn, `account.id` dương và role hợp lệ. Token sai hoặc hết hạn trả 401 `UNAUTHORIZED`. Không tin payload trước khi kiểm tra chữ ký.
 - Filter nhận `Authorization: Bearer ...`, gọi gateway và đặt `Identity` vào Spring SecurityContext. Controller lấy danh tính qua `@AuthenticationPrincipal`; không nhận `studentId` hoặc `role` từ body hay query.
-- Module không lưu session, refresh token, trạng thái logout hoặc khóa ký. Khi chưa có bean `TokenGateway`, gateway dự phòng trả 503 `AUTH_NOT_CONFIGURED`. Khi đồng đội cung cấp bean, service và filter tự dùng bean đó.
+- Đặt `JWT_SECRET` trong biến môi trường. Khóa phải ngẫu nhiên và có ít nhất 32 byte UTF-8. `.env.example` chỉ chứa giá trị mẫu; gateway từ chối giá trị mẫu bắt đầu bằng `change-me`.
+- Khi `JWT_SECRET` trống, gateway dự phòng trả 503 `AUTH_NOT_CONFIGURED` khi phát hoặc xác minh token.
+- Backend không lưu session, refresh token, trạng thái logout hoặc khóa ký. Khóa không được ghi vào repo.
 - Luồng đăng nhập kiểm tra bcrypt và khung giờ trước khi gọi `issue`. Nếu nhóm dùng Argon2, cần thay `PasswordVerifier` trong cấu hình service và thống nhất định dạng `account.password_hash` trước khi tích hợp.
 - ADMIN không thể đăng nhập mới trong khoảng `[opensAt, closesAt)` của đợt OPEN. Filter không kiểm tra lại khung giờ với token đã cấp; ADMIN vẫn xử lý được sự cố đến khi token hết hạn.
 
-Cần tích hợp và kiểm thử lại hợp đồng này với JWT thật. Kiểm thử hiện tại dùng gateway giả, chỉ có trong test classpath.
+`JwtTokenGatewayTest` kiểm tra phát token, vai trò, thời hạn, sai khóa, payload bị sửa, token sai định dạng và khóa yếu. Kiểm thử tích hợp còn dùng gateway giả, chỉ có trong test classpath. Chưa chạy lại bộ kiểm thử sau khi thêm gateway.
 
 ## API
 
@@ -62,7 +64,7 @@ Các endpoint dùng base path `/api/v1`, JSON camelCase và thời gian ISO 8601
 
 `GET /registration` và `GET /sections` trả ETag cùng `Cache-Control: private, max-age=0, must-revalidate`, `Vary: Authorization`; hỗ trợ `If-None-Match` và 304. `X-Server-Time` luôn chứa giờ hiện tại. ETag của đợt dựa trên nội dung đợt, không dựa trên `serverTime` thay đổi liên tục. Không dùng dữ liệu cache để quyết định chỗ đăng ký.
 
-Ví dụ đăng ký. Sau khi tích hợp gateway, dùng Swagger Authorize với JWT thật:
+Ví dụ đăng ký. Sau khi đặt `JWT_SECRET`, dùng Swagger Authorize với JWT do backend phát:
 
 ```http
 POST /api/v1/enrollments
@@ -189,12 +191,13 @@ Các nhóm kiểm thử:
 - Đồng thời: hai request cùng sinh viên cho cùng lớp, môn, ca và tín chỉ; hủy đồng thời.
 - Token giả chỉ nằm trong test classpath, không được đóng gói vào JAR.
 
-Sau khi chạy test, xem `target/surefire-reports` và `target/evidence/openapi.json`. Các kiểm thử này xác nhận tính đúng, không chứng minh hệ thống đạt tải 1.000 người dùng/5.000 request hoặc kết quả đo trên bốn máy. Trước nghiệm thu nhóm, cần tích hợp JWT thật, nhận migration của Quyền, xác nhận hợp đồng API với Tùng và chạy lại kiểm thử tích hợp.
+Sau khi chạy test, xem `target/surefire-reports` và `target/evidence/openapi.json`. Các kiểm thử này xác nhận tính đúng, không chứng minh hệ thống đạt tải 1.000 người dùng/5.000 request hoặc kết quả đo trên bốn máy. Trước nghiệm thu nhóm, cần cấu hình khóa JWT, nhận migration của Quyền, xác nhận hợp đồng API với Tùng và chạy lại kiểm thử tích hợp.
 
-### Kết quả kiểm chứng ngày 25/10/2026
+### Kết quả kiểm chứng trước khi bổ sung JWT (25/10/2026)
 
 - Môi trường: Windows, JDK 21.0.8, Maven Wrapper 3.9.9, biên dịch với `release 17`, PostgreSQL embedded 14.22.
 - Maven Wrapper `package`: **21 test, 0 lỗi, 0 bỏ qua** (15 kiểm thử tích hợp, 4 luật nghiệp vụ, 2 filter). Ca cố tình gây lỗi DB có log ERROR dự kiến; rollback và gửi lại đã được xác minh.
 - Đã tạo `target/course-registration-0.1.0-SNAPSHOT.jar`. JAR không chứa lớp kiểm thử, fixture hoặc PostgreSQL embedded.
-- Chạy JAR trên loopback: Swagger UI và `/v3/api-docs` trả 200; `/api/v1/me` không có bearer trả 401; bearer khi chưa tích hợp JWT trả 503. Dịch vụ kiểm tra tạm đã dừng.
-- Chưa kiểm chứng Docker, JWT thật, DB chung, Tailscale hoặc tải trên bốn máy. Kiểm thử replay tạo lại service trên cùng DB để xác nhận không phụ thuộc bộ nhớ; chưa restart tiến trình với JWT thật.
+- Chạy JAR trên loopback: Swagger UI và `/v3/api-docs` trả 200; `/api/v1/me` không có bearer trả 401; bearer khi chưa có gateway trả 503. Dịch vụ kiểm tra tạm đã dừng.
+- Tại mốc này chưa kiểm chứng Docker, JWT, DB chung, Tailscale hoặc tải trên bốn máy. Kiểm thử replay tạo lại service trên cùng DB để xác nhận không phụ thuộc bộ nhớ; chưa restart tiến trình.
+- Sau mốc này đã thêm `JwtTokenGateway` và kiểm thử riêng; chưa chạy lại Maven Wrapper.

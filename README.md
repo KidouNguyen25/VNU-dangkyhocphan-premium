@@ -67,19 +67,20 @@ ERD tương tác: [docs/so-do-co-so-du-lieu.html](docs/so-do-co-so-du-lieu.html)
 - GET registration và GET sections công khai trong mạng Tailscale; chỉ trả dữ liệu chung.
 - Swagger UI và OpenAPI mở để thử API trong môi trường nhóm. API được bảo vệ vẫn cần JWT.
 - Container chạy bằng user không phải root.
-- JWT thật cần tích hợp qua TokenGateway. Khi chưa có bean này, thao tác ký hoặc xác minh token trả 503 AUTH_NOT_CONFIGURED.
+- JWT HS256 đã được triển khai qua `TokenGateway`. Khi `JWT_SECRET` trống, phát hoặc xác minh token trả 503 `AUTH_NOT_CONFIGURED`.
 
 Chi tiết: [docs/system-security.md](docs/system-security.md) và [docs/k5-backend.md](docs/k5-backend.md).
 
 ## Chạy backend
 
-Yêu cầu JDK 17+ và PostgreSQL có schema đã tạo bằng migration của nhóm. Spring Boot không tự nạp file .env; đặt biến môi trường trong shell hoặc IDE. DB_URL, DB_USER và DB_PASSWORD phải trỏ tới tài khoản API đã được cấp quyền tối thiểu.
+Yêu cầu JDK 17+ và PostgreSQL có schema đã tạo bằng migration của nhóm. Spring Boot không tự nạp file `.env`; đặt biến môi trường trong shell hoặc IDE. `DB_URL`, `DB_USER` và `DB_PASSWORD` phải trỏ tới tài khoản API có quyền tối thiểu. `JWT_SECRET` phải là chuỗi ngẫu nhiên tối thiểu 32 byte.
 
 Ví dụ PowerShell:
 
     $env:DB_URL = 'jdbc:postgresql://127.0.0.1:5432/dkhp'
     $env:DB_USER = 'dkhp_api'
     $env:DB_PASSWORD = '<mat-khau-cuc-bo>'
+    $env:JWT_SECRET = (openssl rand -base64 48).Trim()
     .\mvnw.cmd spring-boot:run
 
 - Swagger UI: http://127.0.0.1:8080/swagger-ui/index.html
@@ -93,7 +94,7 @@ Maven Wrapper có lệnh kiểm thử và đóng gói:
 
 Bộ kiểm thử dùng PostgreSQL tạm thời, không kết nối database triển khai. Yêu cầu Windows và giới hạn môi trường được ghi trong [docs/k5-backend.md](docs/k5-backend.md).
 
-Docker Compose hiện cần migration, tài khoản API và kiểm chứng triển khai trước khi chạy toàn hệ thống. File .env.example chứa giá trị mẫu; thay mật khẩu trước khi dùng. Không commit file .env.
+Docker Compose hiện cần migration, tài khoản API và kiểm chứng triển khai trước khi chạy toàn hệ thống. `.env.example` chỉ chứa giá trị mẫu; thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` trước khi dùng. Không commit file `.env`.
 
 ## Tài liệu
 
@@ -116,7 +117,7 @@ Docker Compose hiện cần migration, tài khoản API và kiểm chứng tri�
 | Đề bài, phạm vi, sơ đồ và phân tích bảo mật | Có |
 | Backend Spring Boot, API, giao dịch và idempotency | Có |
 | Filter, phân quyền và giới hạn tốc độ | Có |
-| JWT thật qua TokenGateway | Chờ tích hợp |
+| JWT HS256 qua TokenGateway | Đã triển khai; cần cấu hình `JWT_SECRET` |
 | Migration và dữ liệu dùng chung | Chờ bàn giao, chưa chạy production schema |
 | Maven Wrapper và bộ kiểm thử | Có |
 | Docker Compose end-to-end | Chưa kiểm chứng |
