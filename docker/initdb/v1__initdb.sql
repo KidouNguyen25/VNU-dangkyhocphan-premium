@@ -31,7 +31,7 @@ CREATE TABLE registration_period (
     CONSTRAINT chk_period_validity CHECK (login_opens_at <= opens_at AND opens_at < closes_at),
     CONSTRAINT chk_period_positive_limit CHECK (credit_limit > 0)
 );
-CREATE UNIQUE INDEX uk_open_period
+CREATE UNIQUE INDEX uidx_open_period
 ON registration_period ((status))
 WHERE status = 'OPEN';
 
@@ -42,12 +42,12 @@ CREATE TABLE section (
     lecturer varchar(100) NOT NULL,
     capacity smallint NOT NULL,
     enrolled_count smallint NOT NULL DEFAULT 0,
-    session integer NOT NULL,
+    session integer NOT NULL, --bitmask
     CONSTRAINT chk_section_positive_student_count CHECK (enrolled_count BETWEEN 0 AND capacity),
     CONSTRAINT chk_section_positive_capacity CHECK (capacity > 0),
     CONSTRAINT chk_section_session_validity CHECK (session > 0 AND session < 268435456)
 );
-CREATE INDEX section_term_course_idx
+CREATE INDEX idx_section_term_course
 ON section (term, course_code);
 
 CREATE TABLE enrollment (
@@ -56,8 +56,11 @@ CREATE TABLE enrollment (
     section_id bigint NOT NULL REFERENCES section(id),
     status enrollment_status NOT NULL,
     fail_code varchar(30),
-    created_at timestamptz NOT NULL DEFAULT clock_timestamp()
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    -- status đã fail phải có fail code
+    CONSTRAINT chk_enrollment_status_validity CHECK (status <> 'FAILED' OR fail_code IS NOT NULL)
 );
+-- 1 lớp không có 2 mã sinh vin trùng
 CREATE UNIQUE INDEX uk_student_section_enrolled
 ON enrollment (student_id, section_id)
 WHERE status = 'ENROLLED';
@@ -67,40 +70,18 @@ CREATE TABLE idempotency_record (
     student_id bigint NOT NULL REFERENCES account(id),
     idempotency_key varchar(128) NOT NULL,
     request_hash char(64) NOT NULL,
-    state varchar(16) NOT NULL CHECK (state IN ('PROCESSING', 'COMPLETED')),
+    state varchar(16) NOT NULL,
     response_status smallint,
     response_body jsonb,
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     expires_at timestamptz NOT NULL,
+    -- CHECK (state IN ('PROCESSING','COMPLETED'))
+    CONSTRAINT chk_idempotency_key_state_validity CHECK (state IN ('PROCESSING', 'COMPLETED')),
+    -- Đảm bảo mỗi yêu cầu đã xử lý xong trước khi thêm vào record
+    CONSTRAINT chk_idempotency_key_response_not_null_while_processing CHECK (WHERE state <> 'COMPLETED' OR (response_status IS NOT NULL AND response_body IS NOT NULL)),
     CONSTRAINT chk_idempotency_key_len_validity CHECK (length(idempotency_key) BETWEEN 1 AND 128)
 );
-CREATE UNIQUE INDEX uk_student_requests_idempotency ON idempotency_record (student_id, idempotency_key)
-WHERE state <> 'COMPLETED' OR (response_status IS NOT NULL AND response_body IS NOT NULL);
-CREATE INDEX idempotency_expires_idx ON idempotency_record (expires_at);
-
-
--- Load lai sample db: docker compose up -d
--- Xoa db: docker compose down -v
-
--- 123456 hash
-INSERT INTO account (code, full_name, password_hash, role) VALUES
-('ADMIN01', 'Tralalero Tralala', '$2a$10$5i3r7fAfz7bX9xBxUGKReukM8cZBnWmaP46f4T9XcAH26MRISn3KO', 'ADMIN'),
-('SV001', 'Nguyen Duc Toan', '$2a$10$5i3r7fAfz7bX9xBxUGKReukM8cZBnWmaP46f4T9XcAH26MRISn3KO', 'STUDENT'),
-('SV002', 'tung tung tung sahur', '$2a$10$5i3r7fAfz7bX9xBxUGKReukM8cZBnWmaP46f4T9XcAH26MRISn3KO', 'STUDENT'),
-('SV003', 'Nguyen Thanh Trung', '$2a$10$5i3r7fAfz7bX9xBxUGKReukM8cZBnWmaP46f4T9XcAH26MRISn3KO', 'STUDENT');
-
-INSERT INTO course (code, name, credits, prerequisite) VALUES
-('INT2204', 'Lập trình hướng đối tượng', 3, NULL),
-('INT3406', 'Xử lý ngôn ngữ tự nhieen', 3, 'INT2210'),
-('INT2210', 'Cấu trúc dữ liệu và giải thuật', 4, NULL);
-
-INSERT INTO period (term, login_opens_at, opens_at, closes_at, status, credit_limit) VALUES
-('2026-1', NOW(), NOW() + INTERVAL '1 hour', NOW() + INTERVAL '7 days', 'OPEN', 24);
-
-INSERT INTO section (course_code, term, lecturer, capacity, enrolled_count, session) VALUES
-('INT3406 1', '2026-1', 'chatgpt và claude', 2, 2, 32),
-('INT2204 1', '2026-1', 'el gato', 2, 0, 32);
-
-INSERT INTO enrollment (student_id, section_id, status, created_at) VALUES
-('SV001', 'INT3406 1', "Enrolled", NOW()),
-('SV002', 'INT3406 1', 'Enrolled', NOW());
+-- UNIQUE (student_id, idempotency_key)
+CREATE UNIQUE INDEX uk_student_requests_idempotency ON idempotency_record (student_id, idempotency_key);
+-- INDEX (expires_at)
+CREATE INDEX idx_idempotency_expires ON idempotency_record (expires_at);

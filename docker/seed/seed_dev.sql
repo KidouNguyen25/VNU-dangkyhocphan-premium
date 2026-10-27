@@ -44,13 +44,13 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO course (code, name, credits, prerequisite) VALUES
     ('INT3001', 'Kiến trúc phần mềm', 3, 'INT3005'),
-    ('INT3002', 'Cơ sở dữ liệu', 3, ''),
-    ('INT3003', 'Mạng máy tính', 3, ''),
-    ('INT3004', 'Hệ điều hành', 3, ''),
-    ('INT3005', 'Lập trình hướng đối tượng', 3, ''),
+    ('INT3002', 'Cơ sở dữ liệu', 3, NULL),
+    ('INT3003', 'Mạng máy tính', 3, NULL),
+    ('INT3004', 'Hệ điều hành', 3, NULL),
+    ('INT3005', 'Lập trình hướng đối tượng', 3, NULL),
     ('INT3006', 'An toàn thông tin', 3, 'INT3003'),
-    ('MAT1001', 'Giải tích 1', 3, ''),
-    ('ENG1001', 'Tiếng Anh cơ bản', 2, '')
+    ('MAT1001', 'Giải tích 1', 3, NULL),
+    ('ENG1001', 'Tiếng Anh cơ bản', 2, NULL)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO registration_period (term, login_opens_at, opens_at, closes_at, status, credit_limit)

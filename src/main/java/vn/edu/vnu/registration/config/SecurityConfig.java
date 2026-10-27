@@ -17,11 +17,20 @@ import vn.edu.vnu.registration.data.PostgresRepository;
 import static vn.edu.vnu.registration.domain.Models.*;
 import static vn.edu.vnu.registration.domain.Ports.*;
 
+/**
+ * Lớp cấu hình bảo mật và phần quyền cho hệ thống qua việc kiểm tra JWT.
+ */
 @Configuration
 public class SecurityConfig {
-    @Bean public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<TokenGateway> tokens, MemoryRateLimiter limiter,
-                                                       ObjectMapper json, PostgresRepository repository,
-                                                       @Value("${app.health-allowed-ips}") String healthIps) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            ObjectProvider<TokenGateway> tokens,
+            MemoryRateLimiter limiter,
+            ObjectMapper json,
+            PostgresRepository repository,
+            @Value("${app.health-allowed-ips}") String healthIps
+    ) throws Exception {
         return http.csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .requestCache(c -> c.disable()).formLogin(c -> c.disable()).httpBasic(c -> c.disable()).logout(c -> c.disable())
@@ -29,7 +38,6 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
-                    .requestMatchers("/", "/index.html", "/*.html", "/*.js", "/*.css").permitAll() //TODO: Nào có trang login.html xoá cái này :3
                 .requestMatchers(HttpMethod.GET, "/api/v1/registration", "/api/v1/sections").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
