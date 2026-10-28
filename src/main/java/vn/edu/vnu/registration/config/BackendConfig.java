@@ -41,7 +41,7 @@ public class BackendConfig {
     }
     @Bean public OpenAPI openAPI() {
         return new OpenAPI().info(new Info().title("VNU Đăng ký học phần").version("1.0")
-            .description("JSON camelCase; thời gian UTC. JWT HS256, hết hạn sau 60 phút. Chỗ trống chỉ có giá trị tham khảo."))
+            .description("JSON camelCase; thời gian ISO 8601 UTC. Lỗi có dạng {code, message, details}. Bearer JWT HS256, hết hạn sau 60 phút. Chỗ trống chỉ có giá trị tham khảo."))
             .components(new Components().addSecuritySchemes("bearerAuth", new SecurityScheme()
                 .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")));
     }
