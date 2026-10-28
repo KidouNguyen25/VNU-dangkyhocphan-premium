@@ -144,16 +144,16 @@ docker compose exec -T postgres \
 
 ## 7. Ngưỡng đạt (Thresholds)
 
-> ⚠️ **Ngưỡng chưa được chốt — đang chờ xác nhận từ Toàn (D6).**
+> **Ngưỡng chưa được chốt — đang chờ xác nhận từ trưởng nhóm (D6).**
 
 | Chỉ số | Ngưỡng mục tiêu | Kết quả | Đạt? |
 |--------|----------------|---------|------|
-| p95 latency toàn hệ thống | `[chưa xác định]` | `[...] ms` | `[⏳]` |
-| p95 latency login | `[chưa xác định]` | `[...] ms` | `[⏳]` |
-| Tỷ lệ lỗi | `[chưa xác định]` | `[...]%` | `[⏳]` |
-| Thông lượng tối thiểu | `[chưa xác định]` | `[...] req/s` | `[⏳]` |
-| Không over-enroll | Bắt buộc | `[PASS/FAIL]` | `[⏳]` |
-| Không PROCESSING mồ côi | Bắt buộc | `[PASS/FAIL]` | `[⏳]` |
+| p95 latency toàn hệ thống | `[chưa xác định]` | `[...] ms` | `[chưa đánh giá]` |
+| p95 latency login | `[chưa xác định]` | `[...] ms` | `[chưa đánh giá]` |
+| Tỷ lệ lỗi | `[chưa xác định]` | `[...]%` | `[chưa đánh giá]` |
+| Thông lượng tối thiểu | `[chưa xác định]` | `[...] req/s` | `[chưa đánh giá]` |
+| Không over-enroll | Bắt buộc | `[PASS/FAIL]` | `[chưa đánh giá]` |
+| Không PROCESSING mồ côi | Bắt buộc | `[PASS/FAIL]` | `[chưa đánh giá]` |
 
 **Kết luận tổng thể:** `[Đang chờ ngưỡng được chốt từ D6 để kết luận PASS/FAIL chính thức.]`
 

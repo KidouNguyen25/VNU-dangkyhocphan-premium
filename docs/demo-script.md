@@ -95,12 +95,12 @@ Mở sẵn: `http://localhost:8080/swagger-ui.html`
 ### Bước 3 — Authorize *(30 giây)*
 
 **Thao tác:**
-1. Nhấn nút **Authorize** (🔒) ở góc trên phải Swagger UI
+1. Nhấn nút **Authorize** ở góc trên phải Swagger UI
 2. Trong ô **bearerAuth (http, Bearer)**, dán `accessToken` vào (không cần thêm `Bearer ` phía trước — Swagger tự thêm)
 3. Nhấn **Authorize** → nhấn **Close**
 
 **Kết quả mong đợi:**
-- Biểu tượng ổ khóa chuyển sang **đóng** (🔒 → 🔐)
+- Biểu tượng ổ khóa xác nhận đã đăng nhập
 - Tất cả endpoint có ổ khóa sẽ tự động gắn `Authorization: Bearer <token>` trong các request tiếp theo
 
 ---

@@ -118,7 +118,7 @@ td code,li code,p code{font-family:ui-monospace,Consolas,monospace;font-size:12p
 <header>
   <h1>Sơ đồ CSDL – Hệ thống đăng ký tín chỉ VNU</h1>
   <p class="sub" id="stats"></p>
-  <div class="banner"><b>Lược đồ đề xuất để xem, chưa triển khai.</b> Thay bằng lược đồ của Quyền (K2, K4) khi bàn giao. Suy ra từ Đặc tả API, Danh sách endpoints và Bản ghi công việc; chỗ nào là giả định thì ghi ở tab cuối.</div>
+  <div class="banner"><b>Lược đồ đề xuất để xem, chưa triển khai.</b> Thay bằng lược đồ của người phụ trách CSDL (K2, K4) khi bàn giao. Suy ra từ Đặc tả API, Danh sách endpoints và Bản ghi công việc; chỗ nào là giả định thì ghi ở tab cuối.</div>
 </header>
 <nav id="tabs"></nav>
 <main>
@@ -317,7 +317,7 @@ const ASSUME=[
 'Mỗi lớp thuộc đúng một đợt, khóa của đợt là <code>term</code>.',
 'Đăng ký nhiều lớp là tất cả hoặc không. Đây là quyết định 1 của V1 còn mở, lược đồ không phụ thuộc vào lựa chọn.',
 'enrolled_count chỉ đếm CONFIRMED. PENDING chỉ xuất hiện ở đường hàng đợi và chưa chiếm chỗ.',
-'Kiểu dữ liệu là đề xuất: smallint cho số nhỏ, bigint identity cho khóa phát sinh, varchar có giới hạn cho mã, timestamptz cho mọi mốc giờ. Quyền chốt quy ước đặt tên cuối cùng.',
+'Kiểu dữ liệu là đề xuất: smallint cho số nhỏ, bigint identity cho khóa phát sinh, varchar có giới hạn cho mã, timestamptz cho mọi mốc giờ. Người phụ trách CSDL chốt quy ước đặt tên cuối cùng.',
 'Dữ liệu import danh mục và tài khoản chạy bằng dkhp_owner qua tập lệnh, không qua API.'];
 
 /* ---------- Trạng thái và lưu trữ ---------- */
@@ -418,7 +418,7 @@ function renderPerm(){
 <p>Vai trò nằm ở cột <code>account.role</code> và được đưa vào JWT lúc đăng nhập. Mọi truy vấn lấy <code>studentId</code> từ JWT. API kết nối DB bằng một tài khoản chung <code>dkhp_api</code>, không tạo DB user theo từng sinh viên.</p>
 <h2>Vai trò ở tầng PostgreSQL</h2>
 <p class="none">Bấm vào chữ cái để bật hoặc tắt quyền. Thay đổi được lưu tự động.</p>
-<table><tr><th>Bảng</th><th><code>dkhp_owner</code><br><small>migration, import, seed (Quyền, Tùng)</small></th><th><code>dkhp_api</code><br><small>phần xử lý phía máy chủ, quyền tối thiểu</small></th><th><code>dkhp_readonly</code><br><small>kiểm chứng sau tải, trình diễn</small></th></tr>
+<table><tr><th>Bảng</th><th><code>dkhp_owner</code><br><small>migration, import, seed (phụ trách CSDL, phụ trách kiểm thử)</small></th><th><code>dkhp_api</code><br><small>phần xử lý phía máy chủ, quyền tối thiểu</small></th><th><code>dkhp_readonly</code><br><small>kiểm chứng sau tải, trình diễn</small></th></tr>
 ${M.T.map(t=>`<tr><td><code>${esc(t.id)}</code></td><td><span class="chip A">DDL + DML</span></td><td>${cell(t,1)}</td><td>${cell(t,2)}</td></tr>`).join('')}</table>
 <p><span class="chip S">S</span> SELECT <span class="chip I">I</span> INSERT <span class="chip U">U</span> UPDATE <span class="chip D">D</span> DELETE</p>
 <div class="grid2">
@@ -429,7 +429,7 @@ ${M.T.map(t=>`<tr><td><code>${esc(t.id)}</code></td><td><span class="chip A">DDL
 <li>Bảng danh mục và tài khoản chỉ SELECT: import đi qua dkhp_owner.</li>
 <li>USAGE trên sequence của section, enrollment, audit_log để INSERT.</li></ul></div>
 <div class="box"><h3>dkhp_owner và dkhp_readonly</h3><ul>
-<li>dkhp_owner sở hữu schema, chạy migration của Quyền và seed của Tùng, không dùng lúc API chạy.</li>
+<li>dkhp_owner sở hữu schema, chạy migration của người phụ trách CSDL và seed của người phụ trách kiểm thử, không dùng lúc API chạy.</li>
 <li>dkhp_readonly chỉ SELECT. Cột password_hash và bảng idempotency_key không cấp.</li>
 <li>Cổng DB chỉ mở cho máy chạy API và các máy trong Tailscale, không mở Internet.</li></ul></div></div>`;
 }
@@ -451,7 +451,7 @@ function renderInv(){
 <table><tr><th>Bất biến</th><th>Cơ chế</th><th>Loại</th></tr>${M.INV.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><span class="tag">${r[2]}</span></td></tr>`).join('')}</table>
 <h2>Chủ ý không đưa vào</h2>
 <table><tr><th>Thành phần</th><th>Lý do</th></tr>${M.EXCL.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>
-<h2>Giả định cần Quyền xác nhận</h2><ul>${M.ASSUME.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+<h2>Giả định cần người phụ trách CSDL xác nhận</h2><ul>${M.ASSUME.map(x=>`<li>${x}</li>`).join('')}</ul>`;
 }
 
 /* ---------- Làm mới ---------- */

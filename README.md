@@ -36,8 +36,7 @@ Chi tiết nghiệp vụ, ràng buộc và endpoint: [docs/phase-1-scope.md](doc
 
 Phân tầng: API → nghiệp vụ → truy cập dữ liệu. Tầng nghiệp vụ không phụ thuộc Spring, HTTP hoặc JDBC. PostgreSQL là nguồn dữ liệu có thẩm quyền; hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker.
 
-Sơ đồ kiến trúc: [docs/diagrams/kien-truc.mmd](docs/diagrams/kien-truc.mmd).
-Luồng đăng ký: [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-ky.mmd).
+Mã nguồn sơ đồ (Mermaid): [kiến trúc](docs/diagrams/kien-truc.mmd), [luồng đăng ký](docs/diagrams/luong-dang-ky.mmd), [luồng hủy](docs/diagrams/luong-huy.mmd). Các GIF bên dưới là bản tóm tắt trực quan.
 
 ### Luồng hoạt động trên kiến trúc
 
@@ -54,6 +53,12 @@ Luồng đăng ký: [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-k
 ![Hủy: khóa tài khoản, tìm lượt của sinh viên, xóa lượt và hoàn chỗ](docs/assets/luong-huy.gif)
 
 Hủy trong một giao dịch. Hệ thống chỉ hủy lượt của sinh viên đăng nhập và giảm sĩ số đúng một lần.
+
+### Triển khai bốn máy
+
+![Bốn máy trong mạng Tailscale: client gọi API qua cổng 8080, chỉ backend vào cổng 5432 của DB](docs/assets/luong-trien-khai.gif)
+
+Hướng dẫn từng bước: [docs/deploy-tailscale.md](docs/deploy-tailscale.md).
 
 ### Sơ đồ cơ sở dữ liệu
 
@@ -111,6 +116,11 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-ky.mmd) | Luồng đăng ký |
 | [docs/diagrams/luong-huy.mmd](docs/diagrams/luong-huy.mmd) | Luồng hủy |
 | [docs/so-do-co-so-du-lieu.html](docs/so-do-co-so-du-lieu.html) | ERD tương tác |
+| [docs/test-matrix.md](docs/test-matrix.md) | Ma trận kiểm thử TC01–TC14 và lệnh chạy lại |
+| [docs/deploy-tailscale.md](docs/deploy-tailscale.md) | Triển khai bốn máy qua Tailscale |
+| [load/README.md](load/README.md) | Kịch bản thử tải k6, kiểm thử đồng thời, cách chạy từ máy trống |
+| [docs/load-test-report.md](docs/load-test-report.md) | Mẫu báo cáo thử tải; chưa có số liệu |
+| [docs/demo-script.md](docs/demo-script.md) | Kịch bản trình diễn qua Swagger UI |
 
 ## Trạng thái
 
@@ -125,5 +135,7 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | Đặc tả API và OpenAPI | Có |
 | Maven Wrapper và bộ kiểm thử | Có |
 | Docker Compose | CI dựng và kiểm tra nhanh; chưa kiểm trên bốn máy Tailscale |
-| Kiểm thử tải trên Kaggle CPU | Chưa thực hiện |
+| Ma trận kiểm thử, kịch bản thử tải k6, hướng dẫn triển khai, kịch bản trình diễn | Có |
+| Kiểm thử tải trên bốn máy Tailscale | Kịch bản sẵn sàng; chưa chạy, báo cáo còn là mẫu |
+| `docker/verify/invariants.sql` (kiểm bất biến sau tải) | Có; chạy bằng `load/scripts/run_invariants.sh` |
 | CI | Có (`.github/workflows/ci.yml`): kiểm thử Maven, dựng Docker Compose |

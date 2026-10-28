@@ -43,6 +43,8 @@
 
 ## Giao dịch đăng ký và hủy
 
+![Đăng ký: xác thực, ghi idempotency, khóa dữ liệu, kiểm ràng buộc, commit](assets/luong-dang-ky.gif)
+
 Đăng ký (`POST /enrollments`), tất cả trong một giao dịch:
 
 - Ghi `idempotency_record` trạng thái `PROCESSING` với `UNIQUE (student_id, idempotency_key)`. Nếu khóa đã có thì chờ giao dịch kia, rồi so hash và phát lại phản hồi đã commit.

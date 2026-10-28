@@ -76,7 +76,7 @@ td code,li code,p code{font-family:ui-monospace,Consolas,monospace;font-size:12p
 <header>
   <h1>Sơ đồ CSDL – Hệ thống đăng ký tín chỉ VNU</h1>
   <p class="sub" id="stats"></p>
-  <div class="banner">Lược đồ MVP theo SRS (24/10/2026): các bảng của ERD đã duyệt và <code>idempotency_record</code>. Đây là chuẩn của MVP: mọi tài liệu khác bám theo sơ đồ này. Quyền (K2, K4) rà lại khi nhận bàn giao; giả định còn lại ghi ở tab cuối.</div>
+  <div class="banner">Lược đồ MVP theo SRS (24/10/2026): các bảng của ERD đã duyệt và <code>idempotency_record</code>. Đây là chuẩn của MVP: mọi tài liệu khác bám theo sơ đồ này. Người phụ trách CSDL (K2, K4) rà lại khi nhận bàn giao; giả định còn lại ghi ở tab cuối.</div>
 </header>
 <nav id="tabs"></nav>
 <main>
@@ -154,7 +154,7 @@ const T=[
  ['login_opens_at','timestamptz','','mở đăng nhập, tính từ mốc này'],
  ['opens_at','timestamptz','','mở đăng ký và hủy'],
  ['closes_at','timestamptz','','đóng đăng ký, hủy và đăng nhập'],
- ['status','registration_status','','OPEN hoặc CLOSED (chờ Quyền chốt enum)'],
+ ['status','registration_status','','OPEN hoặc CLOSED (chờ người phụ trách CSDL chốt enum)'],
  ['credit_limit','smallint','','giới hạn tín chỉ cho cả đợt']],notes:[
  'CHECK (login_opens_at <= opens_at AND opens_at < closes_at)',
  'CHECK (credit_limit > 0)',
@@ -247,7 +247,7 @@ const ASSUME=[
 'Enum chốt: account_role (STUDENT, ADMIN), registration_status (OPEN, CLOSED), enrollment_status (ENROLLED, FAILED). Không có SCHEDULED: đợt chưa mở là đợt CLOSED có opens_at ở tương lai.',
 'Lịch học là bitmask 28 bit với 4 ca/ngày (2 sáng, 2 chiều), đã được xác nhận theo thời khóa biểu thật. Chuyển sang tiết (12 tiết/ngày, 84 bit/tuần) để pha 2: vượt bigint nên dùng bit(84) hoặc bảng section_schedule.',
 'Tiên quyết chỉ là metadata; trùng môn trong kỳ được kiểm trong MVP.',
-'Kiểu dữ liệu là đề xuất: smallint cho số nhỏ, bigint identity cho khóa phát sinh, varchar có giới hạn cho mã, timestamptz cho mọi mốc giờ. Quyền chốt quy ước đặt tên cuối cùng.',
+'Kiểu dữ liệu là đề xuất: smallint cho số nhỏ, bigint identity cho khóa phát sinh, varchar có giới hạn cho mã, timestamptz cho mọi mốc giờ. Người phụ trách CSDL chốt quy ước đặt tên cuối cùng.',
 'Dữ liệu import danh mục và tài khoản chạy bằng dkhp_owner qua tập lệnh, không qua API.'];
 
 
@@ -320,7 +320,7 @@ $('#tab-perm').innerHTML=`
 <tr><td>Quản trị</td><td><code>PUT /admin/sections/{id}</code> · <code>PUT /admin/registration</code></td></tr></table>
 <p>Vai trò nằm ở cột <code>account.role</code> và được đưa vào JWT lúc đăng nhập. Mọi truy vấn lấy <code>studentId</code> từ JWT. API kết nối DB bằng một tài khoản chung <code>dkhp_api</code>, không tạo DB user theo từng sinh viên.</p>
 <h2>Vai trò ở tầng PostgreSQL</h2>
-<table><tr><th>Bảng</th><th><code>dkhp_owner</code><br><small>migration, import, seed (Quyền, Tùng)</small></th><th><code>dkhp_api</code><br><small>phần xử lý phía máy chủ, quyền tối thiểu</small></th><th><code>dkhp_readonly</code><br><small>kiểm chứng sau tải, trình diễn</small></th></tr>
+<table><tr><th>Bảng</th><th><code>dkhp_owner</code><br><small>migration, import, seed (phụ trách CSDL, phụ trách kiểm thử)</small></th><th><code>dkhp_api</code><br><small>phần xử lý phía máy chủ, quyền tối thiểu</small></th><th><code>dkhp_readonly</code><br><small>kiểm chứng sau tải, trình diễn</small></th></tr>
 ${T.map(t=>{const p=PERM[t.id];return `<tr><td><code>${t.id}</code></td><td>${chips(p[0])}</td><td>${chips(p[1])}</td><td>${chips(p[2])}</td></tr>`}).join('')}</table>
 <p><span class="chip S">S</span> SELECT <span class="chip I">I</span> INSERT <span class="chip U">U</span> UPDATE <span class="chip D">D</span> DELETE</p>
 <div class="grid2">
@@ -330,7 +330,7 @@ ${T.map(t=>{const p=PERM[t.id];return `<tr><td><code>${t.id}</code></td><td>${ch
 <li>Bảng danh mục và tài khoản chỉ SELECT: import đi qua dkhp_owner.</li>
 <li>USAGE trên sequence của section, enrollment, idempotency_record để INSERT.</li></ul></div>
 <div class="box"><h3>dkhp_owner và dkhp_readonly</h3><ul>
-<li>dkhp_owner sở hữu schema, chạy migration của Quyền và seed của Tùng, không dùng lúc API chạy.</li>
+<li>dkhp_owner sở hữu schema, chạy migration của người phụ trách CSDL và seed của người phụ trách kiểm thử, không dùng lúc API chạy.</li>
 <li>dkhp_readonly chỉ SELECT. Cột password_hash và bảng idempotency_record không cấp.</li>
 <li>Dọn idempotency_record hết hạn do dkhp_owner chạy bằng job quản trị; dkhp_api không có DELETE trên bảng này.</li>
 <li>Cổng DB chỉ mở cho máy chạy API và các máy trong Tailscale, không mở Internet.</li></ul></div></div>`;
@@ -343,7 +343,7 @@ $('#tab-inv').innerHTML=`<h2>Bất biến nghiệp vụ và nơi giữ</h2>
 <table><tr><th>Bất biến</th><th>Cơ chế</th><th>Loại</th></tr>${INV.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><span class="tag">${r[2]}</span></td></tr>`).join('')}</table>
 <h2>Chủ ý không đưa vào</h2>
 <table><tr><th>Thành phần</th><th>Lý do</th></tr>${EXCL.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>
-<h2>Giả định cần Quyền xác nhận</h2><ul>${ASSUME.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+<h2>Giả định cần người phụ trách CSDL xác nhận</h2><ul>${ASSUME.map(x=>`<li>${x}</li>`).join('')}</ul>`;
 
 function show(k){
  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));

@@ -1,5 +1,5 @@
 -- BẢN TẠM
--- Chưa phải migration chính thức: tên constraint và index @Quyền
+-- Chưa phải migration chính thức: tên constraint và index do người phụ trách CSDL chốt
 -- Chạy một lần khi volume PostgreSQL còn trống, bằng POSTGRES_USER
 CREATE TYPE account_role AS ENUM ('STUDENT', 'ADMIN');
 CREATE TYPE registration_status AS ENUM ('OPEN', 'CLOSED');

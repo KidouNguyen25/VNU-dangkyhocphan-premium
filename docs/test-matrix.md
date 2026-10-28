@@ -1,18 +1,20 @@
 # Ma trận kiểm thử — VNU Đăng ký học phần
 
 > **Phạm vi:** Kiểm thử thủ công / tích hợp cho các luồng nghiệp vụ cốt lõi.
-> **Biến môi trường:** `BASE_URL=http://localhost:8080/api/v1`
-> **Yêu cầu chung:** Server đang chạy, DB đã được seed dữ liệu mẫu (xem `scripts/seed.sql`).
+
+> **Biến môi trường:** `BASE_URL=http://localhost:8080/api/v1`; `DEV_PASSWORD` là mật khẩu truyền vào `-v pw=` khi nạp seed.
+
+> **Yêu cầu chung:** Server đang chạy, DB đã được seed dữ liệu mẫu (xem `docker/seed/seed_dev.sql`).
 
 ---
 
-## Quy ước ký hiệu
+## Trạng thái
 
-| Ký hiệu | Ý nghĩa |
+| Giá trị | Ý nghĩa |
 |---------|---------|
-| ✅ | Đạt |
-| ❌ | Không đạt |
-| ⏭️ | Bỏ qua |
+| Đạt | Kiểm thử thành công |
+| Không đạt | Kiểm thử thất bại |
+| Bỏ qua | Không chạy kiểm thử |
 | `$JWT_STUDENT` | JWT của tài khoản sinh viên test (lấy từ TC01) |
 | `$JWT_ADMIN` | JWT của tài khoản admin test |
 | `$ENROLL_ID` | `enrollmentId` lấy từ TC04 |
@@ -23,9 +25,9 @@
 
 | Mã TC | Mô tả | Endpoint | Điều kiện tiên quyết | Kết quả mong đợi | Lệnh / Script | Kết quả | Ngày chạy |
 |-------|-------|----------|----------------------|-----------------|---------------|---------|-----------|
-| **TC01** | Đăng nhập sinh viên thành công | `POST /auth/login` | DB có tài khoản sinh viên `22000001`/`Test@1234`; đang trong khung giờ `loginOpensAt`–`closesAt`; đợt đăng ký ở trạng thái OPEN | HTTP 200; body chứa `accessToken`, `tokenType: "Bearer"`, `expiresIn > 0` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d '{"code":"22000001","password":"Test@1234"}' \| jq .` | | |
-| **TC02** | Đăng nhập ngoài giờ (LOGIN_NOT_OPEN) | `POST /auth/login` | DB có tài khoản sinh viên `22000001`; thời gian server **trước** `loginOpensAt` hoặc **sau** `closesAt` (có thể mock bằng cách set `loginOpensAt` ở tương lai) | HTTP 403; body `{"code":"LOGIN_NOT_OPEN","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d '{"code":"22000001","password":"Test@1234"}' \| jq .` | | |
-| **TC03** | Admin đăng nhập bị khóa khi đợt OPEN (ADMIN_LOGIN_LOCKED) | `POST /auth/login` | DB có tài khoản admin `admin01`; đợt đăng ký đang ở trạng thái **OPEN**; đang trong khung giờ hợp lệ | HTTP 403; body `{"code":"ADMIN_LOGIN_LOCKED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d '{"code":"admin01","password":"Admin@1234"}' \| jq .` | | |
+| **TC01** | Đăng nhập sinh viên thành công | `POST /auth/login` | DB có tài khoản sinh viên `SV00001`/`$DEV_PASSWORD`; đang trong khung giờ `loginOpensAt`–`closesAt`; đợt đăng ký ở trạng thái OPEN | HTTP 200; body chứa `accessToken`, `tokenType: "Bearer"`, `expiresIn > 0` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" \| jq .` | | |
+| **TC02** | Đăng nhập ngoài giờ (LOGIN_NOT_OPEN) | `POST /auth/login` | DB có tài khoản sinh viên `SV00001`; thời gian server **trước** `loginOpensAt` hoặc **sau** `closesAt` (có thể mock bằng cách set `loginOpensAt` ở tương lai) | HTTP 403; body `{"code":"LOGIN_NOT_OPEN","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" \| jq .` | | |
+| **TC03** | Admin đăng nhập bị khóa khi đợt OPEN (ADMIN_LOGIN_LOCKED) | `POST /auth/login` | DB có tài khoản admin `admin`; đợt đăng ký đang ở trạng thái **OPEN**; đang trong khung giờ hợp lệ | HTTP 403; body `{"code":"ADMIN_LOGIN_LOCKED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d "{\"code\":\"admin\",\"password\":\"$DEV_PASSWORD\"}" \| jq .` | | |
 | **TC04** | Đăng ký 1 lớp thành công | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ (từ TC01); đợt đăng ký OPEN; lớp `sectionId=1001` còn chỗ trống; sinh viên chưa đăng ký lớp/học phần này | HTTP 201; body có `items[0].enrollmentId`, `items[0].sectionId == 1001`; header `X-Idempotent-Replay: false` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc04-$(date +%s)" -d '{"sectionIds":[1001]}' \| jq .` | | |
 | **TC05** | Đăng ký khi lớp đã đầy (SECTION_FULL) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; lớp `sectionId=1099` có `enrolledCount == capacity` (seed trước) | HTTP 409; body `{"code":"SECTION_FULL","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc05-$(date +%s)" -d '{"sectionIds":[1099]}' \| jq .` | | |
 | **TC06** | Đăng ký trùng lớp (SECTION_ALREADY_ENROLLED) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; sinh viên **đã đăng ký** lớp `sectionId=1001` (TC04 đã chạy thành công) | HTTP 409; body `{"code":"SECTION_ALREADY_ENROLLED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc06-$(date +%s)" -d '{"sectionIds":[1001]}' \| jq .` | | |
@@ -60,7 +62,7 @@ export BASE_URL="http://localhost:8080/api/v1"
 ```bash
 export JWT_STUDENT=$(curl -s -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"code":"22000001","password":"Test@1234"}' \
+  -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" \
   | jq -r '.accessToken')
 echo "JWT_STUDENT=$JWT_STUDENT"
 ```

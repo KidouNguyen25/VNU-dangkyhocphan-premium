@@ -1,68 +1,66 @@
 sequenceDiagram
     autonumber
-    actor SV as Sinh viên (Swagger UI)
-    participant MW as Middleware
-    participant API as Controller
-    participant SVC as EnrollmentService
-    participant VAL as Chuỗi kiểm tra
+    actor SV as Sinh viên
+    participant SEC as ApiSecurityFilter + Spring Security
+    participant API as ApiController
+    participant SVC as RegistrationService
     participant DB as PostgreSQL
 
-    SV->>MW: POST /api/v1/enrollments (Bearer JWT, Idempotency-Key, sectionIds)
-    MW->>MW: Kiểm JWT, vai trò STUDENT, giới hạn tốc độ, gán request ID
-    alt Token sai hoặc quá giới hạn
-        MW-->>SV: 401 hoặc 403 hoặc 429 (Retry-After)
-    end
-    MW->>API: Chuyển yêu cầu, accountId lấy từ JWT
-    API->>API: Kiểm body và header
-    alt Body hoặc khóa sai định dạng
-        API-->>SV: 400 VALIDATION_ERROR
-    end
-    API->>SVC: register(accountId, key, sectionIds)
-    SVC->>SVC: requestHash = SHA-256(body chuẩn hóa)
+    SV->>SEC: POST /api/v1/enrollments<br/>Bearer JWT, Idempotency-Key, sectionIds
+    alt Token, quyền hoặc giới hạn tốc độ không hợp lệ
+        SEC-->>SV: 401, 403 hoặc 429
+    else Request được phép
+        SEC->>API: Chuyển request; accountId lấy từ JWT
+        API->>API: Kiểm tra body và Idempotency-Key
+        alt Body hoặc header không hợp lệ
+            API-->>SV: 400 VALIDATION_ERROR
+        else Dữ liệu hợp lệ
+            API->>SVC: enroll(accountId, key, sectionIds)
+            SVC->>SVC: Sắp xếp sectionIds; tính SHA-256 request hash
+            SVC->>DB: BEGIN; khóa account FOR UPDATE
+            SVC->>DB: Claim Idempotency-Key (TTL 24 giờ)
 
-    SVC->>DB: BEGIN
-    SVC->>DB: INSERT idempotency_record (PROCESSING) ON CONFLICT DO NOTHING
-
-    alt Khóa đã tồn tại
-        SVC->>DB: SELECT idempotency_record FOR UPDATE (chờ giao dịch đang giữ khóa)
-        DB-->>SVC: state, request_hash, response_status, response_body
-        alt Hash khác
-            SVC->>DB: ROLLBACK
-            SVC-->>SV: 409 IDEMPOTENCY_KEY_REUSED
-        else Hash giống và đã COMPLETED
-            SVC->>DB: ROLLBACK
-            SVC-->>SV: Phát lại status và body đã lưu
-        end
-    else Khóa mới
-        SVC->>DB: SELECT account FOR UPDATE (tuần tự hóa theo sinh viên)
-        SVC->>DB: SELECT đợt OPEN, kiểm now() trong opens_at đến closes_at
-        SVC->>DB: SELECT section WHERE id IN (...) ORDER BY id FOR UPDATE
-        DB-->>SVC: Các lớp đã khóa, lịch đã đăng ký, tổng tín chỉ hiện có
-
-        SVC->>VAL: Chạy lần lượt các luật
-        Note over VAL: 1 Thời gian đợt (403)<br/>2 Lớp tồn tại và đúng term<br/>3 Trùng lớp (409)<br/>4 Trùng học phần (409)<br/>5 Trùng ca bằng bitmask (422)<br/>6 Giới hạn tín chỉ (422)
-
-        alt Một luật không đạt
-            VAL-->>SVC: Lỗi nghiệp vụ kèm mã và details
-            SVC->>DB: UPDATE idempotency_record (COMPLETED, status và body lỗi)
-            SVC->>DB: COMMIT
-            SVC-->>SV: 403 hoặc 409 hoặc 422
-        else Tất cả đạt
-            SVC->>DB: SAVEPOINT ghi_dang_ky
-            loop Mỗi lớp theo id tăng dần
-                SVC->>DB: UPDATE section SET enrolled_count + 1 WHERE enrolled_count nhỏ hơn capacity
-                alt Không còn chỗ (0 dòng được cập nhật)
-                    SVC->>DB: ROLLBACK TO SAVEPOINT ghi_dang_ky
-                    SVC->>DB: UPDATE idempotency_record (COMPLETED, 409 SECTION_FULL)
+            alt Khóa còn hiệu lực
+                SVC->>DB: Đọc idempotency_record FOR UPDATE
+                DB-->>SVC: request_hash, state, response_status, response_body
+                alt Hash khác
+                    SVC->>DB: ROLLBACK
+                    SVC-->>API: 409 IDEMPOTENCY_KEY_REUSED
+                    API-->>SV: 409 và body lỗi
+                else Hash giống, phản hồi đã COMPLETED
                     SVC->>DB: COMMIT
-                    SVC-->>SV: 409 SECTION_FULL
+                    SVC-->>API: Phát lại status và body đã lưu
+                    API-->>SV: Phản hồi đã lưu; X-Idempotent-Replay: true
                 end
-                SVC->>DB: INSERT enrollment (ENROLLED)
+            else Khóa mới hoặc bản ghi hết TTL
+                SVC->>DB: Tạo SAVEPOINT
+                SVC->>DB: Đọc đợt OPEN; khóa section theo id tăng dần
+                SVC->>DB: Đọc lượt ENROLLED để kiểm tra trùng và tín chỉ
+                DB-->>SVC: Đợt, lớp và lượt đăng ký hiện có
+                SVC->>SVC: Kiểm tra thời gian, term, lớp trùng, môn trùng, ca học, tín chỉ
+                alt Kiểm tra nghiệp vụ thất bại
+                    SVC->>DB: ROLLBACK TO SAVEPOINT
+                    SVC->>DB: Lưu phản hồi lỗi; đặt idempotency_record thành COMPLETED
+                    SVC->>DB: COMMIT
+                    SVC-->>API: 4xx và body lỗi đã lưu
+                    API-->>SV: 4xx; X-Idempotent-Replay: false
+                else Kiểm tra hợp lệ
+                    SVC->>DB: Với từng section theo id: tăng enrolled_count nếu còn chỗ, rồi INSERT enrollment
+                    alt Có section đã đầy
+                        SVC->>DB: ROLLBACK TO SAVEPOINT
+                        SVC->>DB: Lưu 409 SECTION_FULL; đặt idempotency_record thành COMPLETED
+                        SVC->>DB: COMMIT
+                        SVC-->>API: 409 SECTION_FULL
+                        API-->>SV: 409; X-Idempotent-Replay: false
+                    else Đăng ký mọi section thành công
+                        SVC->>DB: Lưu phản hồi 201; đặt idempotency_record thành COMPLETED
+                        SVC->>DB: COMMIT
+                        SVC-->>API: 201 với danh sách enrollment
+                        API-->>SV: 201; X-Idempotent-Replay: false
+                    end
+                end
             end
-            SVC->>DB: UPDATE idempotency_record (COMPLETED, 201 và danh sách enrollmentId)
-            SVC->>DB: COMMIT
-            SVC-->>SV: 201 items (enrollmentId, sectionId)
         end
     end
 
-    Note over SVC,DB: Lỗi hệ thống 5xx thì ROLLBACK toàn bộ, không lưu phản hồi, máy khách gửi lại được
+    Note over SVC,DB: Lỗi hệ thống 5xx làm rollback toàn bộ giao dịch; không lưu phản hồi để cho phép gửi lại.

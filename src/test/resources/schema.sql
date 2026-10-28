@@ -1,5 +1,5 @@
 -- Fixture kiểm thử theo docs/so-do-co-so-du-lieu.html, không phải migration triển khai.
--- Migration chính thức và tên constraint/index cần Quyền xác nhận khi tích hợp.
+-- Migration chính thức và tên constraint/index cần người phụ trách CSDL xác nhận khi tích hợp.
 CREATE TYPE account_role AS ENUM ('STUDENT', 'ADMIN');
 CREATE TYPE registration_status AS ENUM ('OPEN', 'CLOSED');
 CREATE TYPE enrollment_status AS ENUM ('ENROLLED', 'FAILED');

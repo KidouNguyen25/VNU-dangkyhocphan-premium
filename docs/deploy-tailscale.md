@@ -6,6 +6,8 @@
 
 ## 1. Kiến trúc tổng quan
 
+![Bốn máy trong mạng Tailscale: client gọi API qua cổng 8080, chỉ backend vào cổng 5432 của DB](assets/luong-trien-khai.gif)
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      Tailscale VPN (tailnet)                │
@@ -97,13 +99,13 @@ Kết quả mong đợi: cột `STATUS` hiển thị `healthy`.
 
 ### 3.4 Kiểm tra port
 
-**Từ máy-backend** (phải thành công ✅):
+**Từ máy-backend** (kết nối thành công):
 ```bash
 nc -zv <tailscale-ip-db> 5432
 # Connection to 100.x.x.1 5432 port [tcp/postgresql] succeeded!
 ```
 
-**Từ máy-client-1 hoặc máy-client-2** (phải thất bại ❌):
+**Từ máy-client-1 hoặc máy-client-2** (kết nối bị từ chối):
 ```bash
 nc -zv <tailscale-ip-db> 5432
 # nc: connect to 100.x.x.1 port 5432 (tcp) failed: Connection refused
@@ -284,12 +286,12 @@ Khi `DB_BIND_ADDR=<tailscale-ip-db>`, chỉ các máy trong tailnet **và đư�
 BACKEND_IP=<tailscale-ip-backend>
 DB_IP=<tailscale-ip-db>
 
-# ✅ Gọi API — phải thành công (200)
+# Gọi API — kỳ vọng thành công (200)
 curl -s -o /dev/null -w "%{http_code}" \
   http://${BACKEND_IP}:8080/api/v1/sections
 # Kết quả: 200
 
-# ❌ Kết nối thẳng DB — phải thất bại
+# Kết nối thẳng DB — kỳ vọng thất bại
 nc -zv -w 3 ${DB_IP} 5432
 # Kết quả: Connection refused hoặc timeout
 ```

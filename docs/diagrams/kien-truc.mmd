@@ -1,34 +1,39 @@
 flowchart LR
-    subgraph TS["Mạng riêng Tailscale (không ra Internet)"]
-        subgraph CL["Hai máy khách (mỗi máy 500 tài khoản giả ở pha 1)"]
-            SW["Swagger UI / OpenAPI"]
-            LT["Công cụ tải"]
+    subgraph TS["Mạng riêng Tailscale"]
+        direction LR
+
+        subgraph CLIENTS["Hai máy khách thử tải · 500 tài khoản giả lập mỗi máy"]
+            direction TB
+            SW["Trình duyệt<br/>Swagger UI do backend cung cấp"]
+            K6["k6"]
         end
 
-        subgraph BE["Máy backend (modular monolith, đồng bộ)"]
-            MW["Middleware<br/>JWT, vai trò, giới hạn tốc độ,<br/>request ID, ETag"]
-            CT["Controller<br/>10 endpoint /api/v1,<br/>kiểm body, ánh xạ lỗi"]
-            SV["Service (Transaction Script)<br/>Auth, Registration,<br/>Enrollment, Admin"]
-            VL["Chuỗi kiểm tra<br/>thời gian, trùng lớp, trùng học phần,<br/>trùng ca, tín chỉ"]
-            RP["Repository mỏng<br/>khóa account rồi section theo id,<br/>UPDATE có điều kiện"]
-            ID["Idempotent Receiver<br/>băm yêu cầu, phát lại phản hồi"]
+        subgraph APP["Máy backend · Spring Boot"]
+            direction LR
+            SEC["Bảo vệ API<br/>JWT, vai trò, giới hạn tốc độ,<br/>request ID, IP cho /health"]
+            API["ApiController<br/>10 endpoint /api/v1<br/>kiểm tra request, tạo response"]
+            DOMAIN["RegistrationService<br/>đăng nhập, đăng ký, hủy, quản trị<br/>kiểm tra giờ, ca học, tín chỉ"]
+            DATA["PostgresRepository<br/>giao dịch, khóa account rồi section,<br/>idempotency, cập nhật sĩ số có điều kiện"]
         end
 
-        subgraph DBM["Máy cơ sở dữ liệu"]
+        subgraph DBHOST["Máy cơ sở dữ liệu"]
             PG[("PostgreSQL<br/>account, course, registration_period,<br/>section, enrollment, idempotency_record")]
         end
     end
 
-    SW -->|HTTPS/HTTP + JWT| MW
-    LT -->|HTTP + JWT| MW
-    MW --> CT --> SV
-    SV --> VL
-    SV --> ID
-    SV --> RP
-    ID --> RP
-    VL --> RP
-    RP -->|một giao dịch ngắn| PG
+    SW -->|HTTP qua Tailscale; Bearer JWT theo endpoint| SEC
+    K6 -->|HTTP qua Tailscale; Bearer JWT| SEC
+    SEC --> API --> DOMAIN --> DATA
+    DATA -->|JDBC · giao dịch ngắn| PG
 
-    classDef note fill:#fff8e6,stroke:#c9a227,color:#333
-    N1["Không dùng Redis, queue, worker, 202.<br/>Số chỗ trong cache/ETag chỉ để hiển thị,<br/>quyết định nhận chỗ nằm trong giao dịch PostgreSQL."]:::note
-    N1 -.- SV
+    NOTE["PostgreSQL là nguồn dữ liệu có thẩm quyền.<br/>Số chỗ đọc qua API chỉ để hiển thị;<br/>giao dịch quyết định cấp chỗ."]
+    NOTE -.-> PG
+
+    classDef client fill:#eef2ff,stroke:#4f46e5,color:#111827
+    classDef app fill:#ecfeff,stroke:#0891b2,color:#111827
+    classDef database fill:#f0fdf4,stroke:#16a34a,color:#111827
+    classDef note fill:#fff7ed,stroke:#ea580c,color:#111827
+    class SW,K6 client
+    class SEC,API,DOMAIN,DATA app
+    class PG database
+    class NOTE note

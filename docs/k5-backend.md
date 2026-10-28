@@ -88,6 +88,8 @@ Mã lỗi nghiệp vụ:
 
 ## Giao dịch và đối chiếu với cơ sở dữ liệu
 
+![Luồng hoạt động trên kiến trúc](assets/luong-kien-truc.gif)
+
 ### Đăng ký
 
 1. Bắt đầu transaction ở mức cô lập `READ COMMITTED`; khóa `account` bằng `FOR UPDATE`.
@@ -99,9 +101,13 @@ Mã lỗi nghiệp vụ:
 
 **Thứ tự khóa đã điều chỉnh:** khóa `account` trước khi thêm bản ghi idempotency. Với FK `idempotency_record.student_id → account.id`, lệnh `INSERT` giữ khóa `KEY SHARE` trên account. Hai request của cùng sinh viên nhưng khác key có thể deadlock nếu cùng chèn rồi nâng khóa lên `FOR UPDATE`. Kiểm thử đã tái hiện lỗi này. Khóa account trước khi chèn loại bỏ vòng chờ; thứ tự vẫn là account rồi section. Thay đổi không sửa bảng; nhóm cần cập nhật sơ đồ trình tự khi tích hợp.
 
+![Luồng đăng ký](assets/luong-dang-ky.gif)
+
 ### Hủy đăng ký
 
 Trong một transaction, backend khóa account, đọc đợt, xác minh lượt đăng ký thuộc sinh viên hiện tại, khóa section, xóa lượt và giảm bộ đếm. Không tìm thấy lượt, lượt đã hủy hoặc lượt thuộc người khác đều trả 404; không hoàn thêm chỗ. Không thể hủy lượt thuộc kỳ khác với đợt đang mở.
+
+![Luồng hủy](assets/luong-huy.gif)
 
 ### Cập nhật lớp và đợt
 
@@ -140,6 +146,7 @@ DELETE FROM idempotency_record WHERE expires_at <= clock_timestamp();
 - PostgreSQL có schema đã được rà soát.
 - Xem `.env.example`. Khai báo biến trong shell hoặc IDE; Spring Boot không tự nạp `.env`.
 - Backend mặc định bind vào loopback. Khi chạy qua Tailscale, đặt `SERVER_ADDRESS` bằng IP Tailscale của máy backend và `HEALTH_ALLOWED_IPS` bằng IP máy phát triển. Không tin `X-Forwarded-For`.
+- CORS chỉ áp dụng cho `/api/v1/**`. Đặt `CORS_ALLOWED_ORIGINS` bằng origin của frontend (phân cách bằng dấu phẩy); mặc định là `http://localhost:3000` và `http://localhost:5173`. Origin khác nhận 403 ở preflight.
 - `HEALTH_ALLOWED_IPS` chỉ nhận IP cụ thể, không nhận hostname hoặc CIDR. Cổng DB chỉ mở cho backend theo cấu hình mạng nhóm.
 
 ### Lệnh chạy

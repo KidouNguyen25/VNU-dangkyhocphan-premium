@@ -1,41 +1,58 @@
 sequenceDiagram
     autonumber
-    actor SV as Sinh viên (Swagger UI)
-    participant MW as Middleware
-    participant API as Controller
-    participant SVC as EnrollmentService
+    actor SV as Sinh viên
+    participant SEC as ApiSecurityFilter + Spring Security
+    participant API as ApiController
+    participant SVC as RegistrationService
     participant DB as PostgreSQL
 
-    SV->>MW: DELETE /api/v1/enrollments/{enrollmentId} (Bearer JWT)
-    MW->>MW: Kiểm JWT, vai trò STUDENT, giới hạn tốc độ, gán request ID
-    alt Token sai hoặc quá giới hạn
-        MW-->>SV: 401 hoặc 403 hoặc 429 (Retry-After)
+    SV->>SEC: DELETE /api/v1/enrollments/{enrollmentId}<br/>Bearer JWT
+    alt Token, quyền hoặc giới hạn tốc độ không hợp lệ
+        SEC-->>SV: 401, 403 hoặc 429
+    else Request được phép
+        SEC->>API: Chuyển request; studentId lấy từ JWT
+        API->>API: Kiểm enrollmentId là số nguyên dương
+        alt enrollmentId không hợp lệ
+            API-->>SV: 400 VALIDATION_ERROR
+        else enrollmentId hợp lệ
+            API->>SVC: cancel(studentId, enrollmentId)
+            SVC->>DB: BEGIN; khóa account FOR UPDATE
+            SVC->>DB: Đọc đợt OPEN theo giờ máy chủ
+            alt Không có đợt OPEN hoặc ngoài giờ đăng ký
+                SVC->>DB: ROLLBACK
+                SVC-->>API: 403 REGISTRATION_NOT_OPEN
+                API-->>SV: 403 REGISTRATION_NOT_OPEN
+            else Đang trong giờ đăng ký
+                SVC->>DB: Tìm enrollment theo id, studentId, status ENROLLED
+                DB-->>SVC: enrollment và term của lớp, nếu có
+                alt Lượt không tồn tại, đã hủy hoặc thuộc người khác
+                    SVC->>DB: ROLLBACK
+                    SVC-->>API: 404 ENROLLMENT_NOT_FOUND
+                    API-->>SV: 404 ENROLLMENT_NOT_FOUND
+                else Có lượt đăng ký
+                    alt Lớp không thuộc kỳ đang mở
+                        SVC->>DB: ROLLBACK
+                        SVC-->>API: 403 REGISTRATION_NOT_OPEN
+                        API-->>SV: 403 REGISTRATION_NOT_OPEN
+                    else Lớp thuộc kỳ đang mở
+                        SVC->>DB: Khóa section FOR UPDATE
+                        SVC->>DB: Kiểm tra lại giờ đăng ký
+                        alt Thời gian đăng ký vừa kết thúc
+                            SVC->>DB: ROLLBACK
+                            SVC-->>API: 403 REGISTRATION_NOT_OPEN
+                            API-->>SV: 403 REGISTRATION_NOT_OPEN
+                        else Thời gian đăng ký còn mở
+                            SVC->>DB: DELETE enrollment
+                            SVC->>DB: Giảm enrolled_count đúng một lần
+                            SVC->>DB: COMMIT
+                            SVC-->>API: Hủy thành công
+                            API-->>SV: 204 No Content
+                        end
+                    end
+                end
+            end
+        end
     end
-    MW->>API: Chuyển yêu cầu, accountId lấy từ JWT
-    API->>API: Kiểm enrollmentId là số nguyên dương
-    alt enrollmentId sai định dạng
-        API-->>SV: 400 VALIDATION_ERROR
-    end
-    API->>SVC: cancel(accountId, enrollmentId)
 
-    SVC->>DB: BEGIN
-    SVC->>DB: SELECT account FOR UPDATE (tuần tự hóa theo sinh viên)
-    SVC->>DB: SELECT đợt OPEN, kiểm now() trong opens_at đến closes_at
-    alt Ngoài khung đăng ký hoặc không có đợt OPEN
-        SVC->>DB: ROLLBACK
-        SVC-->>SV: 403 REGISTRATION_NOT_OPEN
-    end
-
-    SVC->>DB: SELECT enrollment WHERE id khớp, student_id khớp, status ENROLLED
-    alt Không có dòng nào (đã hủy, không tồn tại hoặc của người khác)
-        SVC->>DB: ROLLBACK
-        SVC-->>SV: 404 ENROLLMENT_NOT_FOUND
-    else Có dòng
-        SVC->>DB: SELECT section FOR UPDATE (khóa account trước, section sau)
-        SVC->>DB: DELETE enrollment WHERE id khớp
-        SVC->>DB: UPDATE section SET enrolled_count - 1
-        SVC->>DB: COMMIT
-        SVC-->>SV: 204 No Content
-    end
-
-    Note over SVC,DB: Hủy lần hai cùng id không còn dòng nên trả 404 và không giảm enrolled_count thêm.<br/>Lượt của người khác cũng trả 404 để không lộ id nào có thật.<br/>Luồng hủy không dùng idempotency_record.<br/>Lỗi 5xx thì ROLLBACK toàn bộ, gửi lại được.
+    Note over SVC,DB: Thứ tự khóa: account rồi section. Gửi hủy lần hai trả 404; luồng hủy không dùng idempotency_record.
+    Note over SVC,DB: Lỗi hệ thống 5xx làm rollback toàn bộ giao dịch.
