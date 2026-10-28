@@ -1,5 +1,5 @@
 #!/bin/sh
-# BẢN TẠM cho môi trường dev. Chạy sau tmp1_init.sql, một lần khi volume còn trống.
+# Chạy sau v1__initdb.sql, một lần khi volume PostgreSQL còn trống.
 # Tạo role ứng dụng (DB_USER) chỉ có quyền đọc ghi dữ liệu, không có quyền đổi schema.
 
 psql -v ON_ERROR_STOP=1 \

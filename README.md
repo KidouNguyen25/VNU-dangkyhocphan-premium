@@ -99,7 +99,7 @@ Maven Wrapper có lệnh kiểm thử và đóng gói:
 
 Bộ kiểm thử dùng PostgreSQL tạm thời, không kết nối database triển khai. Yêu cầu Windows và giới hạn môi trường được ghi trong [docs/k5-backend.md](docs/k5-backend.md).
 
-Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` (API từ chối giá trị mẫu `change-me...`), rồi `docker compose up --build`. Lần đầu, PostgreSQL chạy hai script tạm trong [docker/initdb/](docker/initdb/): `tmp1_init.sql` tạo schema và `tmp2_roles.sh` tạo tài khoản API với quyền tối thiểu. Script chỉ chạy khi volume trống; sau khi sửa script, chạy `docker compose down -v` để dựng lại. Dữ liệu mẫu không tự nạp: chạy thủ công [docker/seed/seed_dev.sql](docker/seed/seed_dev.sql) theo hướng dẫn ở đầu file. CI dựng Docker Compose rồi kiểm tra nhanh đăng nhập, xác thực, đăng ký và gửi lặp; cấu hình chưa được kiểm trên bốn máy Tailscale. Không commit file `.env`.
+Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` (API từ chối giá trị mẫu `change-me...`), rồi `docker compose up --build`. Lần đầu, PostgreSQL chạy `v1__initdb.sql` để tạo schema và `v2__roles.sh` để tạo tài khoản API trong [docker/initdb/](docker/initdb/). Các script chỉ chạy khi volume trống; chúng không nâng cấp volume hiện hữu. Muốn dựng lại schema từ đầu, chạy `docker compose down -v` rồi `docker compose up --build`. Dữ liệu mẫu không tự nạp: chạy thủ công [docker/seed/seed_dev.sql](docker/seed/seed_dev.sql) theo hướng dẫn ở đầu file. CI dựng Docker Compose rồi kiểm tra nhanh đăng nhập, xác thực, đăng ký và gửi lặp; cấu hình chưa được kiểm trên bốn máy Tailscale. Không commit file `.env`.
 
 ## Tài liệu
 
@@ -110,6 +110,7 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | [docs/system-security.md](docs/system-security.md) | Phân tích bảo mật |
 | [docs/open-decisions.md](docs/open-decisions.md) | Quyết định và vấn đề còn mở |
 | [docs/k5-backend.md](docs/k5-backend.md) | Bàn giao backend, JWT, API và kiểm thử |
+| [docs/dkhp-erd/database-design.md](docs/dkhp-erd/database-design.md) | Schema PostgreSQL, quyền DB và bất biến dữ liệu |
 | [docs/API-SPECIFICATION.md](docs/API-SPECIFICATION.md) | Đặc tả 10 endpoint, mã lỗi, idempotency |
 | [docs/openapi.yaml](docs/openapi.yaml), [docs/openapi.json](docs/openapi.json) | OpenAPI 3.1.0 sinh từ ứng dụng, import được vào Postman hoặc Swagger Editor |
 | [docs/diagrams/kien-truc.mmd](docs/diagrams/kien-truc.mmd) | Sơ đồ kiến trúc |
@@ -130,7 +131,7 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | Backend Spring Boot, API, giao dịch và idempotency | Có |
 | Filter, phân quyền và giới hạn tốc độ | Có |
 | JWT HS256 qua TokenGateway | Đã triển khai; cần cấu hình `JWT_SECRET` |
-| Schema và tài khoản API cho Docker | Có bản tạm (`docker/initdb`); migration chính thức chờ bàn giao |
+| Schema và tài khoản API cho Docker | Có script khởi tạo v1 cho DB mới (`docker/initdb`) |
 | Dữ liệu mẫu | Có (`docker/seed/seed_dev.sql`), nạp thủ công |
 | Đặc tả API và OpenAPI | Có |
 | Maven Wrapper và bộ kiểm thử | Có |

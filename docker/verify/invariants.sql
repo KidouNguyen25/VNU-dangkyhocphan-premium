@@ -44,7 +44,7 @@ HAVING sum(c.credits) > p.credit_limit;
 \echo '[f] bản ghi idempotency PROCESSING quá hạn'
 SELECT id, student_id, idempotency_key, created_at, expires_at
 FROM idempotency_record
-WHERE state = 'PROCESSING' AND expires_at < now();
+WHERE state = 'PROCESSING' AND expires_at <= clock_timestamp();
 
 \echo '[g] nhiều hơn một đợt OPEN'
 SELECT status, count(*) AS periods

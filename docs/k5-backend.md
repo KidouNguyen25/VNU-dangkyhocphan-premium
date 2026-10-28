@@ -123,12 +123,12 @@ GRANT SELECT ON account, course TO dkhp_api;
 GRANT UPDATE (id) ON account TO dkhp_api;
 GRANT SELECT, INSERT, UPDATE ON registration_period, section, idempotency_record TO dkhp_api;
 GRANT SELECT, INSERT, UPDATE, DELETE ON enrollment TO dkhp_api;
-GRANT USAGE ON SEQUENCE section_id_seq, enrollment_id_seq, idempotency_record_id_seq TO dkhp_api;
+GRANT USAGE, SELECT ON SEQUENCE section_id_seq, enrollment_id_seq, idempotency_record_id_seq TO dkhp_api;
 ```
 
-Đối chiếu tên sequence với migration thật. Lớp ánh xạ dùng các tên index/FK sau để nhận diện lỗi quản trị: `one_open_period`, `section_course_code_fkey`, `section_term_fkey`. Nếu migration dùng tên khác, cần cập nhật mapping trước khi tích hợp.
+`v1__initdb.sql` tạo các sequence và tên index/FK mà lớp ánh xạ sử dụng: `one_open_period`, `section_course_code_fkey`, `section_term_fkey`.
 
-`src/test/resources/schema.sql` chỉ là fixture cho sáu bảng đã duyệt, không tự chạy trên DB thật. Nhánh này không tạo migration sản xuất.
+`docker/initdb/v1__initdb.sql` khởi tạo schema trên volume PostgreSQL mới; `v2__roles.sh` tạo quyền cho API. Init script không nâng cấp volume hiện hữu. `src/test/resources/schema.sql` là fixture cho cùng sáu bảng, ràng buộc và index, không tự chạy trên DB triển khai.
 
 ### Dọn bản ghi idempotency
 
@@ -198,7 +198,7 @@ Các nhóm kiểm thử:
 - Đồng thời: hai request cùng sinh viên cho cùng lớp, môn, ca và tín chỉ; hủy đồng thời.
 - Token giả chỉ nằm trong test classpath, không được đóng gói vào JAR.
 
-Sau khi chạy test, xem `target/surefire-reports` và `target/evidence/openapi.json`. Các kiểm thử này xác nhận tính đúng, không chứng minh hệ thống đạt tải 1.000 người dùng/5.000 request hoặc kết quả đo trên bốn máy. Trước nghiệm thu nhóm, cần cấu hình khóa JWT, chốt migration chính thức, xác nhận hợp đồng API và chạy lại kiểm thử tích hợp.
+Sau khi chạy test, xem `target/surefire-reports` và `target/evidence/openapi.json`. Các kiểm thử này xác nhận tính đúng, không chứng minh hệ thống đạt tải 1.000 người dùng/5.000 request hoặc kết quả đo trên bốn máy. Trước nghiệm thu nhóm, cần cấu hình khóa JWT, dựng DB mới từ init script v1, xác nhận hợp đồng API và chạy lại kiểm thử tích hợp.
 
 ### Kết quả kiểm chứng trước khi bổ sung JWT (25/10/2026)
 
