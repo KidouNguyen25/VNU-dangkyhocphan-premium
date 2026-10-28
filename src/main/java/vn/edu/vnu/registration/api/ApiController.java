@@ -47,7 +47,7 @@ public class ApiController {
     }
 
     @PostMapping("/auth/login")
-    @Operation(summary = "Đăng nhập; ký JWT qua TokenGateway của đồng đội")
+    @Operation(summary = "Đăng nhập và nhận JWT")
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Token.class)))
     public Token login(@Valid @RequestBody LoginRequest request) {
         limiter.login(request.code());

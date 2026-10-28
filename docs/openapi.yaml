@@ -1,0 +1,933 @@
+openapi: 3.1.0
+info:
+  title: VNU Đăng ký học phần
+  description: JSON camelCase; thời gian UTC. JWT HS256, hết hạn sau 60 phút. Chỗ trống chỉ có giá trị tham khảo.
+  version: '1.0'
+servers:
+- url: http://localhost
+  description: Generated server url
+paths:
+  /api/v1/admin/sections/{sectionId}:
+    put:
+      tags:
+      - api-controller
+      summary: 'ADMIN: tạo/cập nhật lớp; không thay identity hoặc lịch của lớp đã có đăng ký'
+      operationId: saveSection
+      parameters:
+      - name: sectionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          exclusiveMinimum: 0
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SectionRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionResponse'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionResponse'
+        '422':
+          description: CAPACITY_BELOW_ENROLLED / SECTION_HAS_ENROLLMENTS / COURSE_NOT_FOUND / REGISTRATION_NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      security:
+      - bearerAuth: []
+  /api/v1/admin/registration:
+    put:
+      tags:
+      - api-controller
+      summary: 'ADMIN: upsert đợt theo term; tối đa một OPEN'
+      operationId: savePeriod
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PeriodRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Period'
+        '409':
+          description: OPEN_PERIOD_EXISTS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      security:
+      - bearerAuth: []
+  /api/v1/enrollments:
+    get:
+      tags:
+      - api-controller
+      summary: Lượt ENROLLED của sinh viên từ JWT
+      operationId: enrollments
+      parameters:
+      - name: term
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 10
+          minLength: 1
+      responses:
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentsResponse'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - api-controller
+      summary: Đăng ký 1–100 lớp, tất cả hoặc không
+      description: Idempotency-Key bắt buộc, phạm vi sinh viên, TTL 24 giờ. Hash theo sectionIds đã sắp xếp. Cùng key/hash
+        phát lại status/body; khác hash 409. Lỗi nghiệp vụ được lưu; 5xx rollback toàn bộ.
+      operationId: enroll
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          maxLength: 128
+          minLength: 1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollRequest'
+        required: true
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollResponse'
+        '404':
+          description: SECTION_NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '409':
+          description: SECTION_FULL / SECTION_ALREADY_ENROLLED / COURSE_ALREADY_ENROLLED / IDEMPOTENCY_KEY_REUSED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '422':
+          description: SECTION_TERM_MISMATCH / SESSION_CONFLICT / CREDIT_LIMIT_EXCEEDED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      security:
+      - bearerAuth: []
+  /api/v1/auth/login:
+    post:
+      tags:
+      - api-controller
+      summary: Đăng nhập và nhận JWT
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+  /api/v1/sections:
+    get:
+      tags:
+      - api-controller
+      summary: Tra cứu lớp công khai trong mạng Tailscale; cursor là id cuối trang trước, limit mặc định 20
+      operationId: sections
+      parameters:
+      - name: term
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 10
+          minLength: 1
+      - name: courseCode
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 12
+          minLength: 1
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          maxLength: 150
+          minLength: 1
+      - name: hasSeats
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+          exclusiveMinimum: 0
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionsResponse'
+        '304':
+          description: ETag khớp
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/registration:
+    get:
+      tags:
+      - api-controller
+      summary: Đợt OPEN hiện tại và giờ máy chủ; công khai trong mạng Tailscale
+      operationId: registration
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PeriodResponse'
+        '304':
+          description: ETag khớp; giờ hiện tại ở X-Server-Time
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/v1/me:
+    get:
+      tags:
+      - api-controller
+      summary: Tài khoản hiện tại
+      operationId: me
+      responses:
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+      security:
+      - bearerAuth: []
+  /api/v1/health:
+    get:
+      tags:
+      - api-controller
+      summary: SELECT 1, chỉ IP được phép; không cần JWT
+      operationId: health
+      responses:
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/enrollments/{enrollmentId}:
+    delete:
+      tags:
+      - api-controller
+      summary: Hủy của chính mình trong đợt mở; hủy lặp trả 404
+      operationId: cancel
+      parameters:
+      - name: enrollmentId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          exclusiveMinimum: 0
+      responses:
+        '204':
+          description: Đã hủy, hoàn chỗ đúng một lần
+        '404':
+          description: ENROLLMENT_NOT_FOUND, gồm cả id của người khác
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '400':
+          description: VALIDATION_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '401':
+          description: UNAUTHORIZED / INVALID_CREDENTIALS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '403':
+          description: FORBIDDEN / LOGIN_NOT_OPEN / ADMIN_LOGIN_LOCKED / REGISTRATION_NOT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '429':
+          description: RATE_LIMITED; header Retry-After tính bằng giây
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: INTERNAL_ERROR; transaction rollback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '503':
+          description: AUTH_NOT_CONFIGURED / SERVICE_UNAVAILABLE; có thể gửi lại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+      security:
+      - bearerAuth: []
+components:
+  schemas:
+    SectionRequest:
+      type: object
+      properties:
+        courseCode:
+          type: string
+          maxLength: 12
+          minLength: 0
+        term:
+          type: string
+          maxLength: 10
+          minLength: 0
+        lecturer:
+          type: string
+          maxLength: 100
+          minLength: 0
+        capacity:
+          type: integer
+          format: int32
+          maximum: 32767
+          minimum: 1
+        session:
+          type: integer
+          format: int32
+          maximum: 268435455
+          minimum: 1
+      required:
+      - capacity
+      - courseCode
+      - lecturer
+      - session
+      - term
+    SectionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        courseCode:
+          type: string
+        term:
+          type: string
+        lecturer:
+          type: string
+        capacity:
+          type: integer
+          format: int32
+        enrolledCount:
+          type: integer
+          format: int32
+        session:
+          type: integer
+          format: int32
+        courseName:
+          type: string
+        credits:
+          type: integer
+          format: int32
+        prerequisite:
+          type: string
+        availableSeats:
+          type: integer
+          format: int32
+    ErrorBody:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details: {}
+    PeriodRequest:
+      type: object
+      properties:
+        term:
+          type: string
+          maxLength: 10
+          minLength: 0
+        loginOpensAt:
+          type: string
+          format: date-time
+        opensAt:
+          type: string
+          format: date-time
+        closesAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - OPEN
+          - CLOSED
+        creditLimit:
+          type: integer
+          format: int32
+          maximum: 32767
+          minimum: 1
+      required:
+      - closesAt
+      - creditLimit
+      - loginOpensAt
+      - opensAt
+      - status
+      - term
+    Period:
+      type: object
+      properties:
+        term:
+          type: string
+        loginOpensAt:
+          type: string
+          format: date-time
+        opensAt:
+          type: string
+          format: date-time
+        closesAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - OPEN
+          - CLOSED
+        creditLimit:
+          type: integer
+          format: int32
+    EnrollRequest:
+      type: object
+      properties:
+        sectionIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          maxItems: 100
+          minItems: 1
+      required:
+      - sectionIds
+    EnrollResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnrollmentResponse'
+    EnrollmentResponse:
+      type: object
+      properties:
+        enrollmentId:
+          type: integer
+          format: int64
+        sectionId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+    LoginRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 20
+          minLength: 0
+        password:
+          type: string
+          maxLength: 72
+          minLength: 0
+      required:
+      - code
+      - password
+    Token:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+        expiresIn:
+          type: integer
+          format: int64
+    SectionsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionResponse'
+        nextCursor:
+          type: integer
+          format: int64
+    PeriodResponse:
+      type: object
+      properties:
+        registration:
+          $ref: '#/components/schemas/Period'
+        serverTime:
+          type: string
+          format: date-time
+    MeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        fullName:
+          type: string
+        role:
+          type: string
+          enum:
+          - STUDENT
+          - ADMIN
+        creditLimit:
+          type: integer
+          format: int32
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        serverTime:
+          type: string
+          format: date-time
+    EnrollmentsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisteredResponse'
+        creditsByTerm:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int32
+    RegisteredResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        courseCode:
+          type: string
+        term:
+          type: string
+        lecturer:
+          type: string
+        capacity:
+          type: integer
+          format: int32
+        enrolledCount:
+          type: integer
+          format: int32
+        session:
+          type: integer
+          format: int32
+        courseName:
+          type: string
+        credits:
+          type: integer
+          format: int32
+        prerequisite:
+          type: string
+        availableSeats:
+          type: integer
+          format: int32
+        enrollmentId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

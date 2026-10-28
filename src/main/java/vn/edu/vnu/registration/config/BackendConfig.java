@@ -34,14 +34,14 @@ public class BackendConfig {
     }
     public static TokenGateway missingTokenGateway() {
         return new TokenGateway() {
-            private BusinessException unavailable() { return error(503, "AUTH_NOT_CONFIGURED", "Chưa tích hợp module JWT của nhóm."); }
+            private BusinessException unavailable() { return error(503, "AUTH_NOT_CONFIGURED", "Chưa cấu hình JWT_SECRET."); }
             @Override public Token issue(Identity identity) { throw unavailable(); }
             @Override public Identity verify(String token) { throw unavailable(); }
         };
     }
     @Bean public OpenAPI openAPI() {
-        return new OpenAPI().info(new Info().title("VNU Đăng ký học phần — K5").version("1.0")
-            .description("JSON camelCase; thời gian UTC. JWT do module của đồng đội cung cấp. Chỗ trống chỉ có giá trị tham khảo."))
+        return new OpenAPI().info(new Info().title("VNU Đăng ký học phần").version("1.0")
+            .description("JSON camelCase; thời gian UTC. JWT HS256, hết hạn sau 60 phút. Chỗ trống chỉ có giá trị tham khảo."))
             .components(new Components().addSecuritySchemes("bearerAuth", new SecurityScheme()
                 .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")));
     }
