@@ -44,13 +44,13 @@ ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO course (code, name, credits, prerequisite) VALUES
     ('INT3001', 'Kiến trúc phần mềm', 3, 'INT3005'),
-    ('INT3002', 'Cơ sở dữ liệu', 3, NULL),
-    ('INT3003', 'Mạng máy tính', 8, NULL),
-    ('INT3004', 'Hệ điều hành', 9, NULL),
-    ('INT3005', 'Lập trình hướng đối tượng', 9, NULL),
+    ('INT3002', 'Cơ sở dữ liệu', 3, ''),
+    ('INT3003', 'Mạng máy tính', 3, ''),
+    ('INT3004', 'Hệ điều hành', 3, ''),
+    ('INT3005', 'Lập trình hướng đối tượng', 3, ''),
     ('INT3006', 'An toàn thông tin', 3, 'INT3003'),
-    ('MAT1001', 'Giải tích 1', 3, NULL),
-    ('ENG1001', 'Tiếng Anh cơ bản', 9, NULL)
+    ('MAT1001', 'Giải tích 1', 3, ''),
+    ('ENG1001', 'Tiếng Anh cơ bản', 2, '')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO registration_period (term, login_opens_at, opens_at, closes_at, status, credit_limit)
@@ -71,89 +71,11 @@ INSERT INTO section (id, course_code, term, lecturer, capacity, session) OVERRID
     (7,  'INT3005', '2026-1', 'Đặng Văn Hải',     60, (1 << 3) | (1 << 11)),           -- T2 ca4, T4 ca4
     (8,  'INT3006', '2026-1', 'Bùi Thị Lan',      60, (1 << 12) | (1 << 16)),          -- T5 ca1, T6 ca1
     (9,  'MAT1001', '2026-1', 'Ngô Văn Minh',    150, (1 << 7) | (1 << 15) | (1 << 19)), -- T3 ca4, T5 ca4, T6 ca4
-    (10, 'MAT1001', '2026-1', 'Đỗ Thị Nga',        1, (1 << 0) | (1 << 13) | (1 << 18)), -- T2 ca1, T5 ca2, T6 ca3
+    (10, 'MAT1001', '2026-1', 'Đỗ Thị Nga',      150, (1 << 0) | (1 << 13) | (1 << 18)), -- T2 ca1, T5 ca2, T6 ca3
     (11, 'ENG1001', '2026-1', 'Trịnh Văn Phúc',    2, (1 << 20) | (1 << 21)),          -- T7 ca1, T7 ca2
     (12, 'ENG1001', '2026-1', 'Lý Thị Quỳnh',     40, (1 << 22) | (1 << 24))           -- T7 ca3, CN ca1
 ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('section', 'id'), (SELECT max(id) FROM section));
-
--- ENROLLMENT
-DO $$
-DECLARE
-    v_sv1_id bigint;
-    v_sv2_id bigint;
-BEGIN
-    SELECT id INTO v_sv1_id FROM account WHERE code = 'SV00001';
-    SELECT id INTO v_sv3_id FROM account WHERE code = 'SV00002';
-
-    IF v_sv1_id IS NOT NULL THEN
-        -- SV00001 đã đăng ký thành công Lớp 1 (INT3001 - 3cr) và Lớp 3 (INT3002 - 3cr)
-        -- Tổng đang có: 6 tín chỉ. SV0001 đã qua môn INT3003 và có thể đăng ký INT3006.
-        INSERT INTO passed_course (student_id, course_code)
-        VALUES
-            (1, "INT3003")
-        ON CONFLICT (student_id, course_code) DO NOTHING
-
-        INSERT INTO enrollment (id, student_id, section_id, status, fail_code, created_at)
-        VALUES
-            (1, v_sv1_id, 1, 'ENROLLED'::enrollment_status, NULL, now() - interval '20 minutes'),
-            (2, v_sv1_id, 3, 'ENROLLED'::enrollment_status, NULL, now() - interval '15 minutes')
-        ON CONFLICT (id) DO NOTHING;
-
-        UPDATE section SET enrolled_count = enrolled_count + 1 WHERE id IN (1, 3);
-    END IF;
-
-    IF v_sv2_id IS NOT NULL THEN
-        -- SV00002 đăng ký (9, MAT1001) làm cho lớp này full 1/1
-        -- SV0002 không thể đăng ký INT3006
-        INSERT INTO enrollment (id, student_id, section_id, status, fail_code, created_at)
-        VALUES
-            (3, v_sv3_id, 9, 'ENROLLED'::enrollment_status, NULL, now() - interval '10 minutes')
-        ON CONFLICT (id) DO NOTHING;
-        -- SV00001: 6 tín, SV00003: 3 tín
-    END IF;
-
-    PERFORM setval(pg_get_serial_sequence('enrollment', 'id'), (SELECT max(id) FROM enrollment));
-END $$;
-
--- IDEMPOTENCY
-DO $$
-DECLARE
-    v_sv1_id bigint;
-BEGIN
-    SELECT id INTO v_sv1_id FROM account WHERE code = 'SV00001';
-
-    IF v_sv1_id IS NOT NULL THEN
-        -- Record đã COMPLETED với kết quả HTTP 201 (Dùng để test IDEMPOTENCY REPLAY & REUSED)
-        INSERT INTO idempotency_record (
-            student_id, idempotency_key, request_hash, state, response_status, response_body, created_at, expires_at
-        ) VALUES (
-            v_sv1_id,
-            'key-seeded-completed-001',
-            '4b207a97491d9600e12d4d95267e887d19c11867180ef9673a216b8d2d1d07c0', -- SHA-256 mẫu
-            'COMPLETED',
-            201,
-            '{"items":[{"id":1,"sectionId":1},{"id":2,"sectionId":3}]}'::jsonb,
-            now() - interval '15 minutes',
-            now() + interval '24 hours'
-        ) ON CONFLICT (student_id, idempotency_key) DO NOTHING;
-
-        -- 2. Record đang ở trạng thái PROCESSING (Dùng để test xung đột khi request đang được xử lý)
-        INSERT INTO idempotency_record (
-            student_id, idempotency_key, request_hash, state, response_status, response_body, created_at, expires_at
-        ) VALUES (
-            v_sv1_id,
-            'key-seeded-processing-002',
-            'd9a1012380123980123890123890123890123890123890123890123890123890',
-            'PROCESSING',
-            NULL,
-            NULL,
-            now() - interval '5 seconds',
-            now() + interval '24 hours'
-        ) ON CONFLICT (student_id, idempotency_key) DO NOTHING;
-    END IF;
-END $$;
-
 
 DROP EXTENSION pgcrypto;
 
