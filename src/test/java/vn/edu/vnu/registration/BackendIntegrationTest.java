@@ -325,4 +325,15 @@ class BackendIntegrationTest {
         Files.createDirectories(Path.of("target/evidence"));
         Files.writeString(Path.of("target/evidence/openapi.json"), docs.getResponse().getContentAsString());
     }
+
+    @Test void corsPreflightChoPhepOriginDev() throws Exception {
+        var ok = mvc.perform(options("/api/v1/enrollments").header("Origin", "http://localhost:5173")
+            .header("Access-Control-Request-Method", "POST").header("Access-Control-Request-Headers", "authorization,idempotency-key")).andReturn().getResponse();
+        assertThat(ok.getStatus()).isEqualTo(200);
+        assertThat(ok.getHeader("Access-Control-Allow-Origin")).isEqualTo("http://localhost:5173");
+        var denied = mvc.perform(options("/api/v1/enrollments").header("Origin", "http://evil.example")
+            .header("Access-Control-Request-Method", "POST")).andReturn().getResponse();
+        assertThat(denied.getStatus()).isEqualTo(403);
+        assertThat(denied.getHeader("Access-Control-Allow-Origin")).isNull();
+    }
 }
