@@ -17,7 +17,10 @@ import java.util.function.Function;
 import static vn.edu.vnu.registration.domain.Models.*;
 import static vn.edu.vnu.registration.domain.Ports.*;
 
-/** Bộ ánh xạ dữ liệu PostgreSQL; mọi lệnh trong giao dịch dùng chung kết nối do Spring JDBC quản lý. */
+/** Bộ ánh xạ dữ liệu PostgreSQL; mọi lệnh trong giao dịch dùng chung kết nối do Spring JDBC quản lý.
+ * Trong Phase 1, toàn bộ các query cần thiết sẽ được xử lý trong lớp sau.
+ *
+ */
 public class PostgresRepository implements Repository {
     private static final String PERIOD = "term, login_opens_at, opens_at, closes_at, status, credit_limit";
     private static final String SECTION = "s.id, s.course_code, s.term, s.lecturer, s.capacity, s.enrolled_count, s.session, c.name AS course_name, c.credits, c.prerequisite";
@@ -38,35 +41,68 @@ public class PostgresRepository implements Repository {
         try { return action.get(); }
         finally { queryNanos.set(queryNanos.get() + System.nanoTime() - start); }
     }
+
     public void resetTiming() { queryNanos.remove(); }
+
     public long queryMillis() { return queryNanos.get() / 1_000_000; }
 
     private <T> List<T> query(String sql, RowMapper<T> mapper, Object... args) {
         return measured(() -> jdbc.query(sql, mapper, args));
     }
+
     private int update(String sql, Object... args) { return measured(() -> jdbc.update(sql, args)); }
+
     private <T> Optional<T> first(List<T> rows) { return rows.stream().findFirst(); }
 
-    @Override public Optional<Account> accountByCode(String code) {
+    // ============== ACCOUNT REPO ====================
+    @Override
+    public Optional<Account> accountByCode(String code) {
         return first(query("SELECT * FROM account WHERE code = ?", this::account, code));
     }
-    @Override public Optional<Account> accountById(long id) {
+
+    @Override
+    public Optional<Account> accountById(long id) {
         return first(query("SELECT * FROM account WHERE id = ?", this::account, id));
     }
+
     private Account account(ResultSet rs, int row) throws SQLException {
-        return new Account(rs.getLong("id"), rs.getString("code"), rs.getString("full_name"), rs.getString("password_hash"), Role.valueOf(rs.getString("role")));
+        return new Account(
+                rs.getLong("id"),
+                rs.getString("code"),
+                rs.getString("full_name"),
+                rs.getString("password_hash"),
+                Role.valueOf(rs.getString("role"))
+        );
     }
-    @Override public Optional<Period> currentPeriod() { return readPeriod(false); }
+
+    //Registration Period
+    @Override
+    public Optional<Period> currentPeriod() { return readPeriod(false); }
+
     private Optional<Period> readPeriod(boolean lock) {
         return first(query("SELECT " + PERIOD + " FROM registration_period WHERE status = 'OPEN'" + (lock ? " FOR SHARE" : ""), (rs, row) ->
             new Period(rs.getString("term"), rs.getTimestamp("login_opens_at").toInstant(), rs.getTimestamp("opens_at").toInstant(),
                 rs.getTimestamp("closes_at").toInstant(), PeriodStatus.valueOf(rs.getString("status")), rs.getInt("credit_limit"))));
     }
+
+    //Section
     private Section section(ResultSet rs, int row) throws SQLException {
-        return new Section(rs.getLong("id"), rs.getString("course_code"), rs.getString("term"), rs.getString("lecturer"),
-            rs.getInt("capacity"), rs.getInt("enrolled_count"), rs.getInt("session"), rs.getString("course_name"), rs.getInt("credits"), rs.getString("prerequisite"));
+        return new Section(
+                rs.getLong("id"),
+                rs.getString("course_code"),
+                rs.getString("term"),
+                rs.getString("lecturer"),
+                rs.getInt("capacity"),
+                rs.getInt("enrolled_count"),
+                rs.getInt("session"),
+                rs.getString("course_name"),
+                rs.getInt("credits"),
+                rs.getString("prerequisite")
+        );
     }
-    @Override public List<Section> sections(SectionQuery q) {
+
+    @Override
+    public List<Section> sections(SectionQuery q) {
         List<String> conditions = new ArrayList<>();
         List<Object> args = new ArrayList<>();
         if (q.term() != null) { conditions.add("s.term = ?"); args.add(q.term()); }
@@ -82,15 +118,20 @@ public class PostgresRepository implements Repository {
         return query("SELECT " + SECTION + " FROM section s JOIN course c ON c.code = s.course_code " +
             (conditions.isEmpty() ? "" : "WHERE " + String.join(" AND ", conditions)) + " ORDER BY s.id LIMIT ?", this::section, args.toArray());
     }
-    @Override public List<Registered> registered(long studentId, String term) {
+
+    @Override
+    public List<Registered> registered(long studentId, String term) {
         String sql = "SELECT " + SECTION + ", e.id AS enrollment_id, e.created_at FROM enrollment e JOIN section s ON s.id = e.section_id " +
             "JOIN course c ON c.code = s.course_code WHERE e.student_id = ? AND e.status = 'ENROLLED'" + (term == null ? "" : " AND s.term = ?") + " ORDER BY s.id";
         Object[] args = term == null ? new Object[]{studentId} : new Object[]{studentId, term};
         return query(sql, (rs, row) -> new Registered(section(rs, row), rs.getLong("enrollment_id"), rs.getTimestamp("created_at").toInstant()), args);
     }
-    @Override public void ping() { query("SELECT 1", (rs, row) -> rs.getInt(1)); }
 
-    @Override public <T> T transaction(Function<Transaction, T> work) {
+    @Override
+    public void ping() { query("SELECT 1", (rs, row) -> rs.getInt(1)); }
+
+    @Override
+    public <T> T transaction(Function<Transaction, T> work) {
         try {
             return transactions.execute(status -> {
                 jdbc.execute("SET LOCAL lock_timeout = '10s'");
@@ -101,15 +142,29 @@ public class PostgresRepository implements Repository {
 
     private class PgTransaction implements Transaction {
         private final TransactionStatus status;
-        PgTransaction(TransactionStatus status) { this.status = status; }
-        @Override public Optional<Account> accountByCode(String code) { return PostgresRepository.this.accountByCode(code); }
-        @Override public Optional<Account> accountById(long id) { return PostgresRepository.this.accountById(id); }
-        @Override public Optional<Period> currentPeriod() { return readPeriod(true); }
-        @Override public List<Section> sections(SectionQuery q) { return PostgresRepository.this.sections(q); }
-        @Override public List<Registered> registered(long id, String term) { return PostgresRepository.this.registered(id, term); }
-        @Override public void ping() { PostgresRepository.this.ping(); }
 
-        @Override public boolean claimKey(long studentId, String key, String hash) {
+        PgTransaction(TransactionStatus status) { this.status = status; }
+
+        @Override
+        public Optional<Account> accountByCode(String code) { return PostgresRepository.this.accountByCode(code); }
+
+        @Override
+        public Optional<Account> accountById(long id) { return PostgresRepository.this.accountById(id); }
+
+        @Override
+        public Optional<Period> currentPeriod() { return readPeriod(true); }
+
+        @Override
+        public List<Section> sections(SectionQuery q) { return PostgresRepository.this.sections(q); }
+
+        @Override
+        public List<Registered> registered(long id, String term) { return PostgresRepository.this.registered(id, term); }
+
+        @Override
+        public void ping() { PostgresRepository.this.ping(); }
+
+        @Override
+        public boolean claimKey(long studentId, String key, String hash) {
             // API không cần DELETE: tái dùng dòng hết TTL bằng UPDATE, job owner dọn các dòng còn lại.
             return !query("""
                 INSERT INTO idempotency_record (student_id, idempotency_key, request_hash, state, created_at, expires_at)
@@ -120,7 +175,9 @@ public class PostgresRepository implements Repository {
                 WHERE idempotency_record.expires_at <= clock_timestamp() RETURNING id
                 """, (rs, row) -> rs.getLong(1), studentId, key, hash).isEmpty();
         }
-        @Override public SavedResponse lockKey(long studentId, String key) {
+
+        @Override
+        public SavedResponse lockKey(long studentId, String key) {
             return first(query("""
                 SELECT request_hash, state, response_status, response_body FROM idempotency_record
                 WHERE student_id = ? AND idempotency_key = ? FOR UPDATE
@@ -128,40 +185,57 @@ public class PostgresRepository implements Repository {
                     (Integer) rs.getObject("response_status", Integer.class), decode(rs.getString("response_body"))), studentId, key))
                 .orElseThrow(() -> new IllegalStateException("Missing idempotency record"));
         }
-        @Override public void completeKey(long studentId, String key, Outcome result) {
+
+        @Override
+        public void completeKey(long studentId, String key, Outcome result) {
             update("UPDATE idempotency_record SET state = 'COMPLETED', response_status = ?, response_body = ?::jsonb WHERE student_id = ? AND idempotency_key = ?",
                 result.status(), encode(result.body()), studentId, key);
         }
-        @Override public void lockAccount(long id) {
+        @Override
+        public void lockAccount(long id) {
             if (query("SELECT id FROM account WHERE id = ? FOR UPDATE", (rs, row) -> rs.getLong(1), id).isEmpty()) {
-                throw error(401, "UNAUTHORIZED", "Tài khoản không còn tồn tại.");
+                throw error(401, "UNAUTHORIZED", "Tài khoản không tồn tại.");
             }
         }
-        @Override public void lockSectionAdmin(long id) {
+
+        @Override
+        public void lockSectionAdmin(long id) {
             // Khóa cả id chưa tồn tại, tránh hai PUT cùng tạo rồi ghi đè sau khi sinh viên đăng ký.
             query("SELECT pg_advisory_xact_lock(hashtextextended('admin-section:' || ?::text, 0))", (rs, row) -> 1, id);
         }
-        @Override public List<Section> lockSections(List<Long> ids) {
+
+        @Override
+        public List<Section> lockSections(List<Long> ids) {
             String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
             return query("SELECT " + SECTION + " FROM section s JOIN course c ON c.code = s.course_code WHERE s.id IN (" +
                 placeholders + ") ORDER BY s.id FOR UPDATE OF s", PostgresRepository.this::section, ids.toArray());
         }
-        @Override public Object savepoint() { return status.createSavepoint(); }
-        @Override public void rollbackTo(Object savepoint) { status.rollbackToSavepoint(savepoint); }
-        @Override public Enrollment enroll(long studentId, long sectionId) {
+
+        @Override
+        public Object savepoint() { return status.createSavepoint(); }
+
+        @Override
+        public void rollbackTo(Object savepoint) { status.rollbackToSavepoint(savepoint); }
+
+        @Override
+        public Enrollment enroll(long studentId, long sectionId) {
             if (update("UPDATE section SET enrolled_count = enrolled_count + 1 WHERE id = ? AND enrolled_count < capacity", sectionId) == 0) {
                 throw sectionError(409, "SECTION_FULL", "Lớp học phần đã đầy.", sectionId);
             }
             return query("INSERT INTO enrollment (student_id, section_id, status) VALUES (?, ?, 'ENROLLED') RETURNING id, section_id, created_at",
                 (rs, row) -> new Enrollment(rs.getLong("id"), rs.getLong("section_id"), rs.getTimestamp("created_at").toInstant()), studentId, sectionId).get(0);
         }
-        @Override public Optional<Cancellation> enrollment(long studentId, long enrollmentId) {
+
+        @Override
+        public Optional<Cancellation> enrollment(long studentId, long enrollmentId) {
             return first(query("""
                 SELECT s.id, s.term FROM enrollment e JOIN section s ON s.id = e.section_id
                 WHERE e.id = ? AND e.student_id = ? AND e.status = 'ENROLLED'
                 """, (rs, row) -> new Cancellation(rs.getLong("id"), rs.getString("term")), enrollmentId, studentId));
         }
-        @Override public void cancel(long studentId, long enrollmentId, long sectionId) {
+
+        @Override
+        public void cancel(long studentId, long enrollmentId, long sectionId) {
             if (update("DELETE FROM enrollment WHERE id = ? AND student_id = ? AND status = 'ENROLLED'", enrollmentId, studentId) == 0) {
                 throw error(404, "ENROLLMENT_NOT_FOUND", "Không tìm thấy lượt đăng ký.");
             }
@@ -169,7 +243,9 @@ public class PostgresRepository implements Repository {
                 throw new IllegalStateException("Enrollment counter invariant violated");
             }
         }
-        @Override public void upsertSection(long id, SectionInput s) {
+
+        @Override
+        public void upsertSection(long id, SectionInput s) {
             try {
                 update("""
                     INSERT INTO section (id, course_code, term, lecturer, capacity, session) VALUES (?, ?, ?, ?, ?, ?)
@@ -178,7 +254,9 @@ public class PostgresRepository implements Repository {
                     """, id, s.courseCode(), s.term(), s.lecturer(), s.capacity(), s.session());
             } catch (DataAccessException e) { throw translate(e); }
         }
-        @Override public void upsertPeriod(Period p) {
+
+        @Override
+        public void upsertPeriod(Period p) {
             try {
                 update("""
                     INSERT INTO registration_period (term, login_opens_at, opens_at, closes_at, status, credit_limit)
@@ -195,10 +273,12 @@ public class PostgresRepository implements Repository {
         try { return json.readValue(data, Object.class); }
         catch (JsonProcessingException e) { throw new IllegalStateException("Invalid stored response", e); }
     }
+
     private String encode(Object data) {
         try { return json.writeValueAsString(data); }
         catch (JsonProcessingException e) { throw new IllegalStateException("Cannot encode response", e); }
     }
+
     private RuntimeException translate(DataAccessException e) {
         Throwable cause = e;
         while (cause.getCause() != null) cause = cause.getCause();

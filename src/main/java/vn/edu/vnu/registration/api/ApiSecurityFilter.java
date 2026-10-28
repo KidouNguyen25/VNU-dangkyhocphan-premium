@@ -54,16 +54,43 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
             if (path.startsWith("/api/v1/")) {
                 limiter.ip(req.getRemoteAddr());
                 boolean health = path.equals("/api/v1/health");
-                if (health && !healthIps.contains(normalizedIp(req.getRemoteAddr()))) throw error(403, "FORBIDDEN", "Địa chỉ không được phép kiểm tra dịch vụ.");
+                if (health && !healthIps.contains(normalizedIp(req.getRemoteAddr()))) throw error(
+                        403,
+                        "FORBIDDEN",
+                        "Địa chỉ không được phép kiểm tra dịch vụ."
+                );
                 if (!health && !path.equals("/api/v1/auth/login")) {
                     String header = req.getHeader("Authorization");
                     if (header != null) {
-                        if (!header.regionMatches(true, 0, "Bearer ", 0, 7) || header.substring(7).isBlank() || header.length() > 8192) throw error(401, "UNAUTHORIZED", "Bearer token không hợp lệ.");
+                        if (!header.regionMatches(
+                                true, 0, "Bearer ", 0, 7) ||
+                                header.substring(7).isBlank() || header.length() > 8192
+                            ) throw error(
+                                401,
+                                "UNAUTHORIZED",
+                                "Bearer token không hợp lệ."
+                            );
+
                         Identity identity;
-                        try { identity = tokens.verify(header.substring(7)); }
-                        catch (BusinessException e) { throw e; }
-                        catch (RuntimeException e) { throw error(401, "UNAUTHORIZED", "Token không hợp lệ hoặc đã hết hạn."); }
-                        if (identity == null) throw error(401, "UNAUTHORIZED", "Token không hợp lệ.");
+                        try {
+                            identity = tokens.verify(header.substring(7));
+                        }
+                        catch (BusinessException e) {
+                                throw e;
+                        }
+                        catch (RuntimeException e) {
+                            throw error(
+                                    401,
+                                    "UNAUTHORIZED",
+                                    "Token không hợp lệ hoặc đã hết hạn."
+                            );
+                        }
+
+                        if (identity == null) throw error(
+                                401,
+                                "UNAUTHORIZED",
+                                "Token không hợp lệ."
+                        );
                         limiter.account(identity.accountId());
                         var authentication = UsernamePasswordAuthenticationToken.authenticated(identity, null, List.of(new SimpleGrantedAuthority("ROLE_" + identity.role())));
                         SecurityContextHolder.getContext().setAuthentication(authentication);

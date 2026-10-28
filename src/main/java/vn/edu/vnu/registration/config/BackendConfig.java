@@ -90,6 +90,7 @@ public class BackendConfig {
         };
     }
 
+    /* OPEN AI CHATGPT REFRENCE*?????*/////
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI().info(new Info().title("VNU Đăng ký học phần — K5").version("1.0")

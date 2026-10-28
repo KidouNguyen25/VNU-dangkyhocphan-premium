@@ -10,6 +10,10 @@ import java.util.stream.Collectors;
 import static vn.edu.vnu.registration.domain.Models.*;
 import static vn.edu.vnu.registration.domain.Ports.*;
 
+/**
+ * Mọi logic nghiệp vụ trong Phase 1 sẽ được xử lý trong lớp sau.
+ *
+ */
 public class RegistrationService {
     private final Repository repo;
     private final TokenGateway tokens;
@@ -25,6 +29,18 @@ public class RegistrationService {
         this.clock = clock;
     }
 
+    /**
+     * Thực hiện đăng nhập vào hệ thống.
+     * Ràng buộc thời gian:
+     * STUDENT chỉ được đăng nhập khi đợt đăng ký hiện tại nằm trong khoảng từ {@code loginOpensAt} đến {@code closesAt}.
+     * ADMIN bị tạm khóa đăng nhập trong khoảng thời gian đăng ký (từ {@code opensAt} đến {@code closesAt}).
+     *
+     * @param code mã đăng nhập
+     * @param password mật khẩu người dùng
+     * @return {@link Token} xác thực nếu thông tin hợp lệ
+     * @throws BusinessException (401) nếu mã hoặc mật khẩu không chính xác
+     * @throws BusinessException (403) nếu không thuộc thời gian được phép đăng nhập của vai trò tương ứng
+     */
     public Token login(String code, String password) {
         var account = repo.accountByCode(code);
         boolean valid = passwords.matches(password, account.map(Account::passwordHash).orElse(dummyHash));
