@@ -53,7 +53,7 @@ if [[ ! -f "$INVARIANTS_SQL" ]]; then
     echo -e "${RED}Lỗi: Không tìm thấy file invariants.sql tại:${NC}"
     echo "  $INVARIANTS_SQL"
     echo ""
-    echo "Đảm bảo Quyền đã tạo file docker/verify/invariants.sql"
+    echo "Đảm bảo người phụ trách CSDL đã tạo file docker/verify/invariants.sql"
     echo "hoặc chỉ định đường dẫn khác: --sql-file /path/to/invariants.sql"
     exit 1
 fi
