@@ -66,3 +66,4 @@ export default function () {
   errorRate.add(!success);
   sleep(1);
 }
+

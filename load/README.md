@@ -92,3 +92,4 @@ Sau khi chạy tải xong, chạy script kiểm tra bất biến dữ liệu:
 bash load/scripts/run_invariants.sh
 ```
 Yêu cầu: Tất cả các truy vấn bất biến phải trả về 0 dòng lỗi.
+
