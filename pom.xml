@@ -22,7 +22,7 @@
   <build><plugins>
     <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><configuration>
-      <systemPropertyVariables><java.io.tmpdir>${project.build.directory}/tmp</java.io.tmpdir></systemPropertyVariables>
+      <systemPropertyVariables><java.io.tmpdir>${project.build.directory}</java.io.tmpdir></systemPropertyVariables>
     </configuration></plugin>
   </plugins></build>
 </project>
