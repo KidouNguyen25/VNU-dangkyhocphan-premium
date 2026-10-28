@@ -94,7 +94,7 @@ Maven Wrapper có lệnh kiểm thử và đóng gói:
 
 Bộ kiểm thử dùng PostgreSQL tạm thời, không kết nối database triển khai. Yêu cầu Windows và giới hạn môi trường được ghi trong [docs/k5-backend.md](docs/k5-backend.md).
 
-Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` (API từ chối giá trị mẫu `change-me...`), rồi `docker compose up --build`. Lần đầu, PostgreSQL chạy hai script tạm trong [docker/initdb/](docker/initdb/): `tmp1_init.sql` tạo schema và `tmp2_roles.sh` tạo tài khoản API với quyền tối thiểu. Script chỉ chạy khi volume trống; sau khi sửa script, chạy `docker compose down -v` để dựng lại. Cấu hình này chưa được kiểm chứng end-to-end. Không commit file `.env`.
+Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` và `JWT_SECRET` (API từ chối giá trị mẫu `change-me...`), rồi `docker compose up --build`. Lần đầu, PostgreSQL chạy hai script tạm trong [docker/initdb/](docker/initdb/): `tmp1_init.sql` tạo schema và `tmp2_roles.sh` tạo tài khoản API với quyền tối thiểu. Script chỉ chạy khi volume trống; sau khi sửa script, chạy `docker compose down -v` để dựng lại. Dữ liệu mẫu không tự nạp: chạy thủ công [docker/seed/seed_dev.sql](docker/seed/seed_dev.sql) theo hướng dẫn ở đầu file. CI dựng Docker Compose rồi kiểm tra nhanh đăng nhập, xác thực, đăng ký và gửi lặp; cấu hình chưa được kiểm trên bốn máy Tailscale. Không commit file `.env`.
 
 ## Tài liệu
 
@@ -105,6 +105,8 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | [docs/system-security.md](docs/system-security.md) | Phân tích bảo mật |
 | [docs/open-decisions.md](docs/open-decisions.md) | Quyết định và vấn đề còn mở |
 | [docs/k5-backend.md](docs/k5-backend.md) | Bàn giao backend, JWT, API và kiểm thử |
+| [docs/API-SPECIFICATION.md](docs/API-SPECIFICATION.md) | Đặc tả 10 endpoint, mã lỗi, idempotency |
+| [docs/openapi.yaml](docs/openapi.yaml), [docs/openapi.json](docs/openapi.json) | OpenAPI 3.1.0 sinh từ ứng dụng, import được vào Postman hoặc Swagger Editor |
 | [docs/diagrams/kien-truc.mmd](docs/diagrams/kien-truc.mmd) | Sơ đồ kiến trúc |
 | [docs/diagrams/luong-dang-ky.mmd](docs/diagrams/luong-dang-ky.mmd) | Luồng đăng ký |
 | [docs/diagrams/luong-huy.mmd](docs/diagrams/luong-huy.mmd) | Luồng hủy |
@@ -119,8 +121,9 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | Filter, phân quyền và giới hạn tốc độ | Có |
 | JWT HS256 qua TokenGateway | Đã triển khai; cần cấu hình `JWT_SECRET` |
 | Schema và tài khoản API cho Docker | Có bản tạm (`docker/initdb`); migration chính thức chờ bàn giao |
-| Dữ liệu mẫu | Chưa |
+| Dữ liệu mẫu | Có (`docker/seed/seed_dev.sql`), nạp thủ công |
+| Đặc tả API và OpenAPI | Có |
 | Maven Wrapper và bộ kiểm thử | Có |
-| Docker Compose end-to-end | Chưa kiểm chứng |
+| Docker Compose | CI dựng và kiểm tra nhanh; chưa kiểm trên bốn máy Tailscale |
 | Kiểm thử tải trên Kaggle CPU | Chưa thực hiện |
-| CI | Chưa cấu hình |
+| CI | Có (`.github/workflows/ci.yml`): kiểm thử Maven, dựng Docker Compose |

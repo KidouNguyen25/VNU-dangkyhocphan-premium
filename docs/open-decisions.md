@@ -1,18 +1,18 @@
-# Quyết định cho K1
+# Nhật ký quyết định
 
 ## Danh sách quyết định
 
-| ID | Câu hỏi | Kết luận hoặc hướng hiện có | Người phụ trách | Trạng thái |
-| --- | --- | --- | --- | --- |
-| D1 | Đăng ký nhiều lớp trong một request xử lý thế nào? | All-or-nothing. `sectionIds` không trùng, cùng kỳ mở, xét trong một giao dịch. | Trung; phối hợp Quyền | Đã chốt 23/10/2026 |
-| D2 | Một lớp lỗi giữa chừng thì xử lý chỗ đã giữ thế nào? | Rollback toàn bộ, không còn chỗ giữ mồ côi. Phản hồi lỗi nghiệp vụ lưu vào `idempotency_record` rồi commit; lỗi 5xx rollback và cho gửi lại. | Quyền; phối hợp Trung | Đã chốt 23/10/2026 |
-| D3 | Khi nào dùng hàng đợi và trả 202? | MVP đồng bộ, không trả 202. Hàng đợi chỉ xét sau thử tải; khi đó cần trạng thái chờ, endpoint tra cứu trạng thái, cơ chế gửi lại và kiểm thử mới. | Trung; Tùng; Toàn ghi nhật ký | Đã chốt cho MVP |
-| D4 | Nếu sau này dùng hàng đợi, lưu ở PostgreSQL hay Redis? | Chưa chọn, chưa tạo bảng hàng đợi. | Toàn | Hoãn, ngoài MVP |
-| D5 | Quy tắc trùng ca, tín chỉ, giờ, hủy, quyền quản trị? | Đã chốt, xem D10 đến D19 bên dưới. | Quyền; cả nhóm xác nhận | Đã chốt, chờ nhóm xác nhận |
-| D6 | Kịch bản 10.000 người dùng và 50.000 yêu cầu đo thế nào? | 50.000 là tổng số yêu cầu theo kịch bản. Tăng tải dần; đo riêng đăng nhập; báo cáo p95, p99, thông lượng, lỗi, CPU, RAM, Tailscale, độ đúng dữ liệu sau tải. Chưa có ngưỡng đạt và thời lượng phát tải. | Toàn; Tùng | Mở một phần |
-| D7 | Đề bài, rubric, yêu cầu nộp và hạn nộp chính thức? | Chưa có trong bản ghi. Nếu giảng viên chưa công bố hạn thì ghi rõ như vậy. | Toàn | Mở |
-| D8 | Cả nhóm chấp thuận phạm vi pha 1 và các quyết định? | Cần xác nhận của cả bốn thành viên sau khi đối chiếu nguồn chính thức. | Toàn | Mở |
-| D9 | Bảng idempotency và cách gửi lại | Thêm `idempotency_record`, TTL 24 giờ, khóa `UNIQUE (student_id, idempotency_key)`. Cùng khóa khác hash trả 409 `IDEMPOTENCY_KEY_REUSED`. Không thêm bảng nào khác. | Quyền; Trung | Đã chốt 23/10/2026 |
+| ID | Câu hỏi | Kết luận hoặc hướng hiện có | Trạng thái |
+| --- | --- | --- | --- |
+| D1 | Đăng ký nhiều lớp trong một request xử lý thế nào? | All-or-nothing. `sectionIds` không trùng, cùng kỳ mở, xét trong một giao dịch. | Đã chốt 23/10/2026 |
+| D2 | Một lớp lỗi giữa chừng thì xử lý chỗ đã giữ thế nào? | Rollback toàn bộ, không còn chỗ giữ mồ côi. Phản hồi lỗi nghiệp vụ lưu vào `idempotency_record` rồi commit; lỗi 5xx rollback và cho gửi lại. | Đã chốt 23/10/2026 |
+| D3 | Khi nào dùng hàng đợi và trả 202? | MVP đồng bộ, không trả 202. Hàng đợi chỉ xét sau thử tải; khi đó cần trạng thái chờ, endpoint tra cứu trạng thái, cơ chế gửi lại và kiểm thử mới. | Đã chốt cho MVP |
+| D4 | Nếu sau này dùng hàng đợi, lưu ở PostgreSQL hay Redis? | Chưa chọn, chưa tạo bảng hàng đợi. | Hoãn, ngoài MVP |
+| D5 | Quy tắc trùng ca, tín chỉ, giờ, hủy, quyền quản trị? | Đã chốt, xem D10 đến D19 bên dưới. | Đã chốt, chờ nhóm xác nhận |
+| D6 | Kịch bản 10.000 người dùng và 50.000 yêu cầu đo thế nào? | 50.000 là tổng số yêu cầu theo kịch bản. Tăng tải dần; đo riêng đăng nhập; báo cáo p95, p99, thông lượng, lỗi, CPU, RAM, Tailscale, độ đúng dữ liệu sau tải. Chưa có ngưỡng đạt và thời lượng phát tải. | Mở một phần |
+| D7 | Đề bài, rubric, yêu cầu nộp và hạn nộp chính thức? | Chưa có trong bản ghi. Nếu giảng viên chưa công bố hạn thì ghi rõ như vậy. | Mở |
+| D8 | Cả nhóm chấp thuận phạm vi pha 1 và các quyết định? | Cần xác nhận của cả bốn thành viên sau khi đối chiếu nguồn chính thức. | Mở |
+| D9 | Bảng idempotency và cách gửi lại | Thêm `idempotency_record`, TTL 24 giờ, khóa `UNIQUE (student_id, idempotency_key)`. Cùng khóa khác hash trả 409 `IDEMPOTENCY_KEY_REUSED`. Không thêm bảng nào khác. | Đã chốt 23/10/2026 |
 
 ## Quyết định đã chốt ngày 24/10/2026
 

@@ -1,4 +1,4 @@
-# Bàn giao backend K5
+# Backend
 
 > Tài liệu mô tả phạm vi, hợp đồng tích hợp, cách chạy và kết quả kiểm chứng backend.
 
@@ -86,7 +86,7 @@ Mã lỗi nghiệp vụ:
 - 409: `SECTION_FULL`, `SECTION_ALREADY_ENROLLED`, `COURSE_ALREADY_ENROLLED`, `IDEMPOTENCY_KEY_REUSED`, `OPEN_PERIOD_EXISTS`.
 - 422: `SESSION_CONFLICT`, `CREDIT_LIMIT_EXCEEDED`, `SECTION_TERM_MISMATCH`, `CAPACITY_BELOW_ENROLLED`, `SECTION_HAS_ENROLLMENTS`, `COURSE_NOT_FOUND`, `REGISTRATION_NOT_FOUND`.
 
-## Giao dịch và đối chiếu với Quyền
+## Giao dịch và đối chiếu với cơ sở dữ liệu
 
 ### Đăng ký
 
@@ -120,7 +120,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON enrollment TO dkhp_api;
 GRANT USAGE ON SEQUENCE section_id_seq, enrollment_id_seq, idempotency_record_id_seq TO dkhp_api;
 ```
 
-Đối chiếu tên sequence với migration thật. Lớp ánh xạ dùng các tên index/FK sau để nhận diện lỗi quản trị: `one_open_period`, `section_course_code_fkey`, `section_term_fkey`. Nếu migration của Quyền dùng tên khác, cần cập nhật mapping trước khi tích hợp.
+Đối chiếu tên sequence với migration thật. Lớp ánh xạ dùng các tên index/FK sau để nhận diện lỗi quản trị: `one_open_period`, `section_course_code_fkey`, `section_term_fkey`. Nếu migration dùng tên khác, cần cập nhật mapping trước khi tích hợp.
 
 `src/test/resources/schema.sql` chỉ là fixture cho sáu bảng đã duyệt, không tự chạy trên DB thật. Nhánh này không tạo migration sản xuất.
 
@@ -137,7 +137,7 @@ DELETE FROM idempotency_record WHERE expires_at <= clock_timestamp();
 ### Môi trường
 
 - JDK 17 trở lên; Maven Wrapper trong repo hoặc Maven 3.9 trở lên.
-- PostgreSQL có schema do Quyền bàn giao.
+- PostgreSQL có schema đã được rà soát.
 - Xem `.env.example`. Khai báo biến trong shell hoặc IDE; Spring Boot không tự nạp `.env`.
 - Backend mặc định bind vào loopback. Khi chạy qua Tailscale, đặt `SERVER_ADDRESS` bằng IP Tailscale của máy backend và `HEALTH_ALLOWED_IPS` bằng IP máy phát triển. Không tin `X-Forwarded-For`.
 - `HEALTH_ALLOWED_IPS` chỉ nhận IP cụ thể, không nhận hostname hoặc CIDR. Cổng DB chỉ mở cho backend theo cấu hình mạng nhóm.
@@ -191,7 +191,7 @@ Các nhóm kiểm thử:
 - Đồng thời: hai request cùng sinh viên cho cùng lớp, môn, ca và tín chỉ; hủy đồng thời.
 - Token giả chỉ nằm trong test classpath, không được đóng gói vào JAR.
 
-Sau khi chạy test, xem `target/surefire-reports` và `target/evidence/openapi.json`. Các kiểm thử này xác nhận tính đúng, không chứng minh hệ thống đạt tải 1.000 người dùng/5.000 request hoặc kết quả đo trên bốn máy. Trước nghiệm thu nhóm, cần cấu hình khóa JWT, nhận migration của Quyền, xác nhận hợp đồng API với Tùng và chạy lại kiểm thử tích hợp.
+Sau khi chạy test, xem `target/surefire-reports` và `target/evidence/openapi.json`. Các kiểm thử này xác nhận tính đúng, không chứng minh hệ thống đạt tải 1.000 người dùng/5.000 request hoặc kết quả đo trên bốn máy. Trước nghiệm thu nhóm, cần cấu hình khóa JWT, chốt migration chính thức, xác nhận hợp đồng API và chạy lại kiểm thử tích hợp.
 
 ### Kết quả kiểm chứng trước khi bổ sung JWT (25/10/2026)
 

@@ -116,18 +116,9 @@ Số chỗ đọc từ ETag hay bộ nhớ đệm chỉ để hiển thị, khô
 
 ## Kế hoạch triển khai
 
-| Mốc | Điều kiện hoàn thành | Phụ trách |
-| --- | --- | --- |
-| A. Chốt đề bài và hợp đồng | Đề bài và rubric đã đối chiếu (K1); Quyền xác nhận cơ sở dữ liệu (K2); hợp đồng lỗi và `Đặc tả API` được cả nhóm duyệt; ma trận kiểm thử và khung OpenAPI có sẵn | Toàn (K1), Quyền, Trung, Tùng |
-| B. Khóa kiến trúc và dữ liệu | Dựng PostgreSQL, dữ liệu mẫu; API và Swagger UI chạy; `POST` ghi `idempotency_record`, `enrollment`, `enrolled_count` trong một giao dịch; bản đầu của C4 và trình tự | Toàn (K3), Quyền (K4), Trung (K5), Tùng |
-| C. Tích hợp nghiệp vụ | Không oversell, không trùng, không vượt tín chỉ, không trùng ca; gửi lại cùng khóa trả cùng phản hồi, khác payload trả 409; hủy không trả chỗ hai lần; TC01 đến TC12 và TC14 có bằng chứng chạy lại được | Trung (K5), Tùng (K6), Quyền |
-| D. Đo, hoàn thiện, nộp | Triển khai qua Tailscale trên bốn máy; thử tải tăng dần kèm SQL hậu kiểm; báo cáo kiến trúc, trình diễn Swagger UI; nộp đúng yêu cầu khi hạn nộp được xác nhận | Tùng (K6), Toàn (K7, K8) |
-
-## Phân công liên quan
-
-| Thành viên | Phần việc |
+| Mốc | Điều kiện hoàn thành |
 | --- | --- |
-| Nguyễn Đức Toàn | Điều phối, kiến trúc, K1, K3, K7, K8; duyệt phạm vi, đối chiếu hợp đồng, nghiệm thu |
-| Hoàng Bá Quyền | K2, K4: rà soát và nhận bàn giao cơ sở dữ liệu, enum, chỉ mục, dữ liệu mẫu, SQL kiểm bất biến, thiết kế khóa và `idempotency_record` |
-| Nguyễn Thành Trung | K5: JWT, 10 endpoint, giao dịch đăng ký và hủy, phát lại idempotency, xử lý lỗi, bảo mật |
-| Nguyễn Xuân Tùng | K6: OpenAPI, Swagger UI, Docker, dựng DB, Tailscale, kiểm thử đồng thời và idempotency, thử tải, bộ minh chứng |
+| A. Chốt đề bài và hợp đồng | Đề bài và rubric đã đối chiếu; cơ sở dữ liệu đã được rà soát; hợp đồng lỗi và `Đặc tả API` được cả nhóm duyệt; ma trận kiểm thử và khung OpenAPI có sẵn |
+| B. Khóa kiến trúc và dữ liệu | Dựng PostgreSQL, dữ liệu mẫu; API và Swagger UI chạy; `POST` ghi `idempotency_record`, `enrollment`, `enrolled_count` trong một giao dịch; bản đầu của C4 và trình tự |
+| C. Tích hợp nghiệp vụ | Không oversell, không trùng, không vượt tín chỉ, không trùng ca; gửi lại cùng khóa trả cùng phản hồi, khác payload trả 409; hủy không trả chỗ hai lần; TC01 đến TC12 và TC14 có bằng chứng chạy lại được |
+| D. Đo, hoàn thiện, nộp | Triển khai qua Tailscale trên bốn máy; thử tải tăng dần kèm SQL hậu kiểm; báo cáo kiến trúc, trình diễn Swagger UI; nộp đúng yêu cầu khi hạn nộp được xác nhận |

@@ -30,7 +30,7 @@
 | SQL injection | Chèn SQL vào tham số `q`, `courseCode` | Truy vấn tham số hóa, không nối chuỗi |
 | Đăng ký trùng, vượt sĩ số | Gửi đồng thời, gửi lặp | Khóa `account`, `UPDATE ... WHERE enrolled_count < capacity`, `UNIQUE`, `CHECK`, `Idempotency-Key` | Theo spec |
 | Lộ trạng thái hệ thống | Dò `/health` | Chỉ IP trong danh sách cho phép, nguồn khác 403 `FORBIDDEN` (D19) |
-| Lộ bí mật qua repo | Commit mật khẩu, khóa JWT, `.env` | `.env.example` chỉ chứa giá trị giả; quét secret trong CI |
+| Lộ bí mật qua repo | Commit mật khẩu, khóa JWT, `.env` | `.env.example` chỉ chứa giá trị giả; `.env` nằm trong `.gitignore`; chưa có bước quét secret trong CI |
 | Lộ thông tin qua lỗi | Stack trace trong phản hồi | Lỗi theo dạng `{code, message, details}`; không trả chi tiết nội bộ |
 | Truy cập DB trực tiếp | Kết nối thẳng cổng PostgreSQL | Cổng DB chỉ mở cho máy chạy API qua IP Tailscale |
 
@@ -85,7 +85,7 @@ Các ca cần có bằng chứng chạy lại được:
 - `/health` từ IP ngoài danh sách trả 403 `FORBIDDEN`.
 - Vượt giới hạn tốc độ ở `/auth/login` bị từ chối.
 - Tham số có ký tự SQL không làm lỗi truy vấn hay thay đổi kết quả.
-- Quét secret và quét lỗ hổng thư viện chạy trong CI.
+- Quét secret và quét lỗ hổng thư viện: chưa có trong CI.
 
 ## Giới hạn hiện tại
 
