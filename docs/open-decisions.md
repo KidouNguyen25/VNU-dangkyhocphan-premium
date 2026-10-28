@@ -33,3 +33,25 @@
 
 - Ngưỡng đạt và thời lượng phát tải (D6).
 - Chuyển lịch học từ ca sang tiết (12 tiết mỗi ngày) ở pha 2.
+
+
+## Đối chiếu hợp đồng API — T1 (28/10/2026)
+
+| # | Hạng mục | Trạng thái spec | Trạng thái code | Điểm lệch |
+|---|----------|-----------------|-----------------|-----------|
+| 1 | 10 endpoint đủ | Có trong `phase-1-scope.md` | Đủ 10 endpoint trong `ApiController` | Khớp ✅ |
+| 2 | `POST /enrollments` trả 201 | 201 `{items:[{enrollmentId,sectionId,createdAt}]}` | Đúng | Khớp ✅ |
+| 3 | `DELETE /enrollments` trả 204 | 204 no body | Đúng | Khớp ✅ |
+| 4 | Idempotency-Key header bắt buộc | 1–128 ký tự, phạm vi (student_id, key), TTL 24h | `@Size(min=1,max=128)` | Khớp ✅ |
+| 5 | `X-Idempotent-Replay` header | Ghi nhận trong `k5-backend.md` | Có trong controller response | Khớp ✅ |
+| 6 | ETag + 304 cho `/sections` và `/registration` | Có | Có | Khớp ✅ |
+| 7 | Tiêu đề OpenAPI không ghi "K5" | Chưa quy định chính thức | Cũ ghi "K5"; đã sửa thành "VNU Đăng ký học phần" | Đã sửa 28/10/2026 ✅ |
+| 8 | `API-SPECIFICATION.md` tĩnh | Chưa có file; OpenAPI sinh runtime qua springdoc | `openapi.yaml` tạo thủ công từ runtime spec | **Cần Toàn chốt**: runtime `/v3/api-docs` hay file tĩnh? |
+| 9 | Mã lỗi 422 `SECTION_TERM_MISMATCH` | Có trong `k5-backend.md` | Có trong `@ApiResponse` | Khớp ✅ |
+| 10 | `PUT /admin/sections` 200 update / 201 create | Có | Có | Khớp ✅ |
+| 11 | `GET /health` IP whitelist, không JWT | D19 đã chốt | `HEALTH_ALLOWED_IPS` | Khớp ✅ |
+
+> **Điểm lệch cần quyết định (D20):** `openapi.yaml` tĩnh vs runtime `/v3/api-docs`.  
+> Hiện tại file `openapi.yaml` được tạo thủ công từ source code; mỗi khi code thay đổi cần cập nhật lại tay.  
+> Đề nghị: dùng runtime `/v3/api-docs` làm nguồn chính thức; `openapi.yaml` chỉ để lưu trữ snapshot.  
+> **Người quyết: Toàn.**
