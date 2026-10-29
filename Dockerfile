@@ -1,8 +1,11 @@
+# syntax=docker/dockerfile:1
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
 COPY pom.xml .
 COPY src/main src/main
-RUN mvn -B -ntp -DskipTests package
+# Cache ~/.m2 giữa các lần build và thử tải lại khi mạng chập, để không phải tải lại toàn bộ dependency.
+RUN --mount=type=cache,target=/root/.m2 \
+    mvn -B -ntp -DskipTests -Daether.connector.http.retryHandler.count=5 package
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
