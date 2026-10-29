@@ -1,7 +1,5 @@
 # Phân tích bảo mật hệ thống
 
-> Tài liệu phân tích và định hướng bảo mật cho pha 1.
-
 ## Phạm vi và giả định
 
 - Backend Spring Boot (Java 17, chạy được trên 21) và PostgreSQL, chạy bằng Docker.

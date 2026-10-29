@@ -1,22 +1,17 @@
-# Kịch bản Trình diễn Swagger UI
+# Kịch bản demo trên Swagger UI
 
-> **Mục tiêu:** Trình diễn toàn bộ luồng chính của hệ thống đăng ký học phần trong **< 15 phút** từ một DB sạch vừa được seed.
->
-> **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+Kịch bản trình diễn các luồng chính trong khoảng 15 phút, bắt đầu từ cơ sở dữ liệu vừa seed. Địa chỉ Swagger UI: `http://localhost:8080/swagger-ui.html`.
 
----
+## Chuẩn bị (không tính vào 15 phút)
 
-## Chuẩn bị (Trước khi demo — không tính vào 15 phút)
-
-### Bước 0.1 — Khởi động hệ thống
+Khởi động hệ thống, kiểm tra `postgres` ở trạng thái healthy và `api` đang chạy:
 
 ```bash
 docker compose up -d
 docker compose ps
-# Đảm bảo cả postgres (healthy) và api (running) đều UP
 ```
 
-### Bước 0.2 — Seed dữ liệu từ DB sạch
+Nạp dữ liệu mẫu:
 
 ```bash
 docker compose exec -T postgres \
@@ -25,299 +20,119 @@ docker compose exec -T postgres \
   -f - < docker/seed/seed_dev.sql
 ```
 
-**Kết quả mong đợi:**
+Seed thành công khi kết quả cuối có `students=1000, admins=1, courses=20, sections=36, period_status=OPEN`. Nếu cơ sở dữ liệu đã có dữ liệu cũ, chạy `docker compose down -v`, `docker compose up -d` rồi seed lại.
 
+Mở sẵn Swagger UI trên trình duyệt.
+
+## Luồng demo
+
+### 1. Mở Swagger UI (30 giây)
+
+Swagger UI hiển thị 10 endpoint: đăng nhập, `/me`, `/registration`, `/sections`, ba endpoint `/enrollments` (xem, đăng ký, hủy), hai endpoint `/admin` và `/health`. Bước này chưa cần JWT.
+
+### 2. Đăng nhập (1 phút)
+
+Mở `POST /api/v1/auth/login`, chọn Try it out, nhập body:
+
+```json
+{ "code": "SV00001", "password": "<mat-khau>" }
 ```
-NOTICE:  students=1000, admins=1, courses=8, sections=12, period_status=OPEN
-INSERT 0 1000
-INSERT 0 1
-...
+
+Kết quả 200:
+
+```json
+{ "accessToken": "eyJhbGciOiJIUzI1NiJ9...", "tokenType": "Bearer", "expiresIn": 3600 }
 ```
 
-> Nếu thấy `students=1000, courses=8, sections=12, period_status=OPEN` là seed thành công. Nếu DB không sạch, chạy `docker compose down -v` rồi `up -d` lại trước khi seed.
+Sao chép giá trị `accessToken`.
 
-### Bước 0.3 — Mở tab trình duyệt
+### 3. Authorize (30 giây)
 
-Mở sẵn: `http://localhost:8080/swagger-ui.html`
+Chọn Authorize ở góc trên bên phải, dán token vào ô `bearerAuth` (không cần thêm tiền tố `Bearer `), chọn Authorize rồi Close. Các request sau sẽ tự gửi kèm token.
 
----
+### 4. Xem tài khoản (30 giây)
 
-## Luồng demo chính (≈ 15 phút)
-
----
-
-### Bước 1 — Mở Swagger UI *(30 giây)*
-
-**Thao tác:**
-- Truy cập `http://localhost:8080/swagger-ui.html` trong trình duyệt
+Gọi `GET /api/v1/me`, kết quả 200:
 
-**Kết quả mong đợi:**
-- Giao diện Swagger hiển thị đầy đủ **10 endpoint** chia theo nhóm:
-  - `auth` — đăng nhập
-  - `me` — thông tin tài khoản
-  - `registration` — đợt đăng ký
-  - `sections` — danh sách lớp
-  - `enrollments` — đăng ký / hủy
+```json
+{ "id": ..., "code": "SV00001", "fullName": "Sinh viên 00001", "role": "STUDENT", "creditLimit": 20 }
+```
 
-**Ghi chú:** Không cần JWT ở bước này.
+`role` là `STUDENT` cho thấy token hợp lệ.
 
----
+### 5. Xem đợt đăng ký (30 giây)
 
-### Bước 2 — Đăng nhập lấy JWT *(1 phút)*
+Gọi `GET /api/v1/registration`, kết quả 200, trong đó `registration` có `"status": "OPEN"` và `"term": "2026-1"`. Sinh viên chỉ đăng ký được khi đợt ở trạng thái `OPEN`.
 
-**Thao tác:**
-1. Mở rộng **`POST /api/v1/auth/login`**
-2. Nhấn **Try it out**
-3. Điền body:
-   ```json
-   {
-     "code": "SV00001",
-     "password": "<mat-khau>"
-   }
-   ```
-4. Nhấn **Execute**
+### 6. Xem danh sách lớp (1 phút)
 
-**Kết quả mong đợi:**
-- HTTP status: **200 OK**
-- Response body:
-  ```json
-  {
-    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
-    "tokenType": "Bearer",
-    "expiresIn": 3600
-  }
-  ```
+Gọi `GET /api/v1/sections` không có bộ lọc, kết quả là 20 lớp đầu tiên (mặc định `limit=20`) kèm `nextCursor` để lấy trang tiếp theo. Thêm `hasSeats=true` để chỉ lấy lớp còn chỗ.
 
-**Ghi chú:** Sao chép giá trị `accessToken` vào clipboard để dùng ở bước 3.
+Lưu ý lớp `id=11` (ENG1001) có `capacity` bằng 2; bước 9 sẽ dùng lớp này.
 
----
-
-### Bước 3 — Authorize *(30 giây)*
-
-**Thao tác:**
-1. Nhấn nút **Authorize** ở góc trên phải Swagger UI
-2. Trong ô **bearerAuth (http, Bearer)**, dán `accessToken` vào (không cần thêm `Bearer ` phía trước — Swagger tự thêm)
-3. Nhấn **Authorize** → nhấn **Close**
-
-**Kết quả mong đợi:**
-- Biểu tượng ổ khóa xác nhận đã đăng nhập
-- Tất cả endpoint có ổ khóa sẽ tự động gắn `Authorization: Bearer <token>` trong các request tiếp theo
-
----
-
-### Bước 4 — Xem thông tin tài khoản *(30 giây)*
-
-**Thao tác:**
-1. Mở rộng **`GET /api/v1/me`**
-2. Nhấn **Try it out** → **Execute**
+### 7. Đăng ký lớp (1 phút)
 
-**Kết quả mong đợi:**
-- HTTP status: **200 OK**
-- Response body:
-  ```json
-  {
-    "id": 1,
-    "code": "SV00001",
-    "fullName": "Nguyễn Văn A",
-    "role": "STUDENT"
-  }
-  ```
+Gọi `POST /api/v1/enrollments` với header `Idempotency-Key: demo-sv00001-001` và body:
 
-**Ghi chú:** Xác nhận JWT hoạt động đúng và `role=STUDENT`.
+```json
+{ "sectionIds": [3] }
+```
 
----
+Kết quả 201, không có header `X-Idempotent-Replay`:
 
-### Bước 5 — Xem đợt đăng ký hiện tại *(30 giây)*
+```json
+{ "items": [ { "enrollmentId": 1, "sectionId": 3, "createdAt": "2026-..." } ] }
+```
 
-**Thao tác:**
-1. Mở rộng **`GET /api/v1/registration`**
-2. Nhấn **Try it out** → **Execute**
+Ghi lại `enrollmentId` để dùng ở bước 10.
 
-**Kết quả mong đợi:**
-- HTTP status: **200 OK**
-- Response body:
-  ```json
-  {
-    "id": 1,
-    "name": "Đăng ký học kỳ 2026-1",
-    "status": "OPEN",
-    "startAt": "2026-...",
-    "endAt": "2026-..."
-  }
-  ```
-
-**Ghi chú:** Trạng thái phải là `OPEN` — đây là điều kiện tiên quyết để sinh viên đăng ký được.
-
----
-
-### Bước 6 — Tra cứu danh sách lớp học phần *(1 phút)*
-
-**Thao tác:**
-1. Mở rộng **`GET /api/v1/sections`**
-2. Nhấn **Try it out** → **Execute** (không lọc)
-
-**Kết quả mong đợi:**
-- HTTP status: **200 OK**
-- Trả về **12 lớp học phần** (8 môn học × các lớp)
-
-**Thao tác lọc:**
-3. Nhập `hasSeats=true` vào query parameter → **Execute**
-
-**Kết quả mong đợi:**
-- Chỉ hiển thị các lớp còn chỗ trống (`enrolled < capacity`)
-
-**Ghi chú:** Để ý `sectionId=11` có `capacity=2` — sẽ dùng để demo SECTION_FULL ở bước 9.
-
----
-
-### Bước 7 — Đăng ký lớp học phần *(1 phút)*
-
-**Thao tác:**
-1. Mở rộng **`POST /api/v1/enrollments`**
-2. Nhấn **Try it out**
-3. Thêm header **`Idempotency-Key: demo-sv00001-001`**
-4. Điền body:
-   ```json
-   {
-     "sectionIds": [3]
-   }
-   ```
-5. Nhấn **Execute**
+### 8. Gửi lại cùng key (1 phút)
 
-**Kết quả mong đợi:**
-- HTTP status: **201 Created**
-- Response body:
-  ```json
-  {
-    "items": [
-      {
-        "enrollmentId": 1,
-        "sectionId": 3,
-        "status": "CONFIRMED",
-        "createdAt": "2026-..."
-      }
-    ]
-  }
-  ```
-- **Không có** header `X-Idempotent-Replay`
+Giữ nguyên header và body của bước 7, chọn Execute lần nữa. Kết quả vẫn là 201 với body giống bước 7 và có thêm header `X-Idempotent-Replay: true`. Như vậy, khi người dùng bấm hai lần hoặc request bị gửi lại, hệ thống không tạo thêm lượt đăng ký.
 
-**Ghi chú:** Ghi lại `enrollmentId=1` để dùng ở bước 10–11.
+### 9. Lớp đầy (2 phút)
 
----
-
-### Bước 8 — Gửi lại cùng Idempotency-Key *(1 phút)*
-
-> Mục đích: Chứng minh hệ thống an toàn với double-submit (mạng chập chờn, người dùng bấm 2 lần).
-
-**Thao tác:**
-1. **Giữ nguyên** toàn bộ request từ bước 7 (cùng header `Idempotency-Key: demo-sv00001-001`, cùng body)
-2. Nhấn **Execute** lần nữa
-
-**Kết quả mong đợi:**
-- HTTP status: **201 Created** (vẫn 201, không phải 409)
-- Response body: **giống hệt** bước 7 (cùng `enrollmentId=1`)
-- Header phản hồi có: **`X-Idempotent-Replay: true`**
-
-**Ghi chú:** Đây là bằng chứng idempotency hoạt động — cùng key trả về cùng kết quả, không tạo enrollment trùng.
-
----
-
-### Bước 9 — Gặp lỗi SECTION_FULL *(2 phút)*
-
-> Mục đích: Chứng minh constraint capacity được thực thi đúng, ngay cả khi nhiều request đồng thời.
-
-#### Phương án A — Demo với 2 tài khoản mới (nếu capacity=11 còn 0/2):
-
-**Thao tác:**
-1. Mở tab trình duyệt mới, đăng nhập bằng `SV00002`, lấy JWT mới
-2. Authorize trên tab mới
-3. `POST /enrollments` với `sectionId=11`, Idempotency-Key: `demo-sv00002-001` → **201 Created** (lần 1)
-4. Quay lại tab SV00001, `POST /enrollments` với `sectionId=11`, Idempotency-Key: `demo-sv00001-sec11` → **201 Created** (lần 2, capacity đầy)
-5. Đăng nhập bằng `SV00003`, thử `POST /enrollments` với `sectionId=11`, Idempotency-Key: `demo-sv00003-001`
-
-**Kết quả mong đợi (SV00003):**
-- HTTP status: **409 Conflict**
-- Response body:
-  ```json
-  {
-    "code": "SECTION_FULL",
-    "message": "Lớp học phần đã hết chỗ",
-    "sectionId": 11
-  }
-  ```
-
-#### Phương án B — Demo nhanh (nếu SV00001 chưa đăng ký sectionId=11):
-
-1. Đăng ký sectionId=11 bằng SV00001 (lần 1) → 201
-2. Đăng ký sectionId=11 bằng SV00002 (lần 2) → 201 (capacity đầy)
-3. Đăng ký sectionId=11 bằng SV00003 → **409 SECTION_FULL**
-
-**Ghi chú:** Nếu không kịp dùng 3 tài khoản, có thể seed lại với `capacity=1` cho sectionId=11 để demo đơn giản hơn.
-
----
-
-### Bước 10 — Hủy đăng ký *(30 giây)*
-
-**Thao tác:**
-1. Mở rộng **`DELETE /api/v1/enrollments/{enrollmentId}`**
-2. Nhấn **Try it out**
-3. Nhập `enrollmentId=1` (từ bước 7)
-4. Nhấn **Execute**
-
-**Kết quả mong đợi:**
-- HTTP status: **204 No Content**
-- Body rỗng
-
-**Ghi chú:** Enrollment đã bị xóa khỏi hệ thống. Slot của sectionId=3 được giải phóng.
-
----
-
-### Bước 11 — Hủy lần hai → 404 *(30 giây)*
-
-> Mục đích: Chứng minh hệ thống xử lý đúng "double delete" — không crash, trả về lỗi rõ ràng.
-
-**Thao tác:**
-1. **Giữ nguyên** request từ bước 10 (`enrollmentId=1`)
-2. Nhấn **Execute** lần nữa
-
-**Kết quả mong đợi:**
-- HTTP status: **404 Not Found**
-- Response body:
-  ```json
-  {
-    "code": "ENROLLMENT_NOT_FOUND",
-    "message": "Không tìm thấy đăng ký học phần với ID 1"
-  }
-  ```
-
-**Ghi chú:** Kết thúc demo. Toàn bộ luồng hoàn thành trong < 15 phút.
-
----
-
-## Tóm tắt luồng demo
-
-| # | Endpoint | Method | HTTP mong đợi | Điểm nổi bật |
-|---|----------|--------|--------------|--------------|
-| 2 | `/auth/login` | POST | 200 | Lấy JWT |
-| 3 | Swagger Authorize | — | — | Gắn Bearer token |
-| 4 | `/me` | GET | 200 | role=STUDENT |
-| 5 | `/registration` | GET | 200 | status=OPEN |
-| 6 | `/sections` | GET | 200 | 12 lớp, lọc hasSeats |
-| 7 | `/enrollments` | POST | 201 | Đăng ký thành công |
-| 8 | `/enrollments` | POST | 201 | Idempotency replay |
-| 9 | `/enrollments` | POST | 409 | SECTION_FULL |
-| 10 | `/enrollments/{id}` | DELETE | 204 | Hủy thành công |
-| 11 | `/enrollments/{id}` | DELETE | 404 | ENROLLMENT_NOT_FOUND |
-
----
-
-## Xử lý tình huống bất ngờ
-
-| Tình huống | Cách xử lý |
-|-----------|-----------|
-| Swagger không load | Kiểm tra `docker compose ps` — api có đang running không? |
-| Login trả về 401 | Seed chưa đúng mật khẩu — kiểm tra biến `pw` khi seed |
-| `/registration` trả về 404 | Seed chưa tạo đợt đăng ký, hoặc status không phải OPEN |
-| POST enrollment trả về 403 | JWT hết hạn — đăng nhập lại lấy token mới |
-| Capacity sectionId=11 không phải 2 | Seed lại từ đầu: `docker compose down -v && docker compose up -d` |
-| 409 xuất hiện sớm hơn dự kiến | Ai đó đã đăng ký trước — xác nhận DB sạch trước demo |
+Lớp 11 có 2 chỗ. Lần lượt đăng ký lớp 11 bằng ba tài khoản, mỗi lần dùng một key khác nhau:
+
+1. SV00001, key `demo-sv00001-sec11`: 201.
+2. SV00002 (đăng nhập và Authorize lại), key `demo-sv00002-001`: 201, lớp đã đủ sĩ số.
+3. SV00003, key `demo-sv00003-001`: 409.
+
+```json
+{ "code": "SECTION_FULL", "message": "...", "details": ... }
+```
+
+Để rút ngắn thời gian, có thể sửa seed để lớp 11 có `capacity` bằng 1.
+
+### 10. Hủy đăng ký (30 giây)
+
+Đăng nhập lại bằng SV00001. Gọi `DELETE /api/v1/enrollments/{enrollmentId}` với id ở bước 7. Kết quả 204, body rỗng, lớp 3 được hoàn lại một chỗ.
+
+### 11. Hủy lần hai (30 giây)
+
+Gửi lại đúng request ở bước 10. Kết quả 404 `ENROLLMENT_NOT_FOUND`; số chỗ của lớp không thay đổi.
+
+## Tóm tắt
+
+| Bước | Request | Kết quả |
+| --- | --- | --- |
+| 2 | `POST /auth/login` | 200, lấy JWT |
+| 4 | `GET /me` | 200, `role=STUDENT` |
+| 5 | `GET /registration` | 200, `status=OPEN` |
+| 6 | `GET /sections` | 200, lọc `hasSeats` |
+| 7 | `POST /enrollments` | 201 |
+| 8 | `POST /enrollments` cùng key | 201, `X-Idempotent-Replay: true` |
+| 9 | `POST /enrollments` lớp 11 | 409 `SECTION_FULL` |
+| 10 | `DELETE /enrollments/{id}` | 204 |
+| 11 | `DELETE /enrollments/{id}` lần hai | 404 `ENROLLMENT_NOT_FOUND` |
+
+## Xử lý sự cố
+
+| Hiện tượng | Cách xử lý |
+| --- | --- |
+| Không mở được Swagger UI | Chạy `docker compose ps`, kiểm tra `api` |
+| Đăng nhập trả 401 | Kiểm tra mật khẩu đã truyền qua `pw` khi seed |
+| Đăng nhập trả 403 `LOGIN_NOT_OPEN` | Đợt chưa `OPEN` hoặc đang ngoài giờ đăng nhập |
+| Endpoint trả 401 | Token hết hạn hoặc chưa Authorize; đăng nhập lại |
+| Lớp 11 không còn đủ 2 chỗ | Chạy `docker compose down -v`, `docker compose up -d` rồi seed lại |
+| 409 xuất hiện sớm hơn dự kiến | Đã có lượt đăng ký trước đó; kiểm tra cơ sở dữ liệu đã được làm sạch |

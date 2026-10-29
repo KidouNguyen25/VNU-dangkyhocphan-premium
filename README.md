@@ -8,8 +8,8 @@ Backend đăng ký học phần. Hệ thống phải giữ đúng sĩ số, trá
 
 Dự án gồm hai pha:
 
-- **Pha 1:** xây dựng hệ thống với chức năng cơ bản.
-- **Pha 2:** cải tiến thuộc tính chất lượng, đánh giá trước và sau cải tiến.
+- Pha 1: xây dựng hệ thống với chức năng cơ bản.
+- Pha 2: cải tiến thuộc tính chất lượng, đánh giá trước và sau cải tiến. Bài toán: [docs/phase-2-scope.md](docs/phase-2-scope.md).
 
 ## Phạm vi Pha 1
 
@@ -34,7 +34,7 @@ Chi tiết nghiệp vụ, ràng buộc và endpoint: [docs/phase-1-scope.md](doc
 | Đóng gói | Docker, Docker Compose |
 | Mạng | Tailscale; không mở Internet công cộng |
 
-Phân tầng: API → nghiệp vụ → truy cập dữ liệu. Tầng nghiệp vụ không phụ thuộc Spring, HTTP hoặc JDBC. PostgreSQL là nguồn dữ liệu có thẩm quyền; hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker.
+Phân tầng: API, nghiệp vụ, truy cập dữ liệu. Tầng nghiệp vụ không phụ thuộc Spring, HTTP hoặc JDBC. PostgreSQL là nguồn dữ liệu có thẩm quyền; hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker.
 
 Mã nguồn sơ đồ (Mermaid): [kiến trúc](docs/diagrams/kien-truc.mmd), [luồng đăng ký](docs/diagrams/luong-dang-ky.mmd), [luồng hủy](docs/diagrams/luong-huy.mmd). Các GIF bên dưới là bản tóm tắt trực quan.
 
@@ -120,7 +120,8 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | [docs/test-matrix.md](docs/test-matrix.md) | Ma trận kiểm thử TC01–TC14 và lệnh chạy lại |
 | [docs/deploy-tailscale.md](docs/deploy-tailscale.md) | Triển khai bốn máy qua Tailscale |
 | [load/README.md](load/README.md) | Kịch bản thử tải k6, kiểm thử đồng thời, cách chạy từ máy trống |
-| [docs/load-test-report.md](docs/load-test-report.md) | Mẫu báo cáo thử tải; chưa có số liệu |
+| [docs/load-test-report.md](docs/load-test-report.md) | Báo cáo thử tải trên một máy (Kaggle, laptop) |
+| [docs/phase-2-scope.md](docs/phase-2-scope.md) | Bài toán pha 2 |
 | [docs/demo-script.md](docs/demo-script.md) | Kịch bản trình diễn qua Swagger UI |
 
 ## Trạng thái
@@ -137,6 +138,6 @@ Docker Compose: `cp .env.example .env`, thay `POSTGRES_PASSWORD`, `DB_PASSWORD` 
 | Maven Wrapper và bộ kiểm thử | Có |
 | Docker Compose | CI dựng và kiểm tra nhanh; chưa kiểm trên bốn máy Tailscale |
 | Ma trận kiểm thử, kịch bản thử tải k6, hướng dẫn triển khai, kịch bản trình diễn | Có |
-| Kiểm thử tải trên bốn máy Tailscale | Kịch bản sẵn sàng; chưa chạy, báo cáo còn là mẫu |
+| Kiểm thử tải | Đã chạy trên một máy (Kaggle, laptop); chưa chạy trên bốn máy Tailscale |
 | `docker/verify/invariants.sql` (kiểm bất biến sau tải) | Có; chạy bằng `load/scripts/run_invariants.sh` |
 | CI | Có (`.github/workflows/ci.yml`): kiểm thử Maven, dựng Docker Compose |

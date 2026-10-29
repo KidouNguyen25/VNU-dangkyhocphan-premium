@@ -1,118 +1,140 @@
-# Ma trận kiểm thử — VNU Đăng ký học phần
+# Ma trận kiểm thử
 
-> **Phạm vi:** Kiểm thử thủ công / tích hợp cho các luồng nghiệp vụ cốt lõi.
+Các ca kiểm thử thủ công cho luồng nghiệp vụ chính, chạy bằng `curl` trên DB vừa seed từ `docker/seed/seed_dev.sql`. Số id lớp dưới đây lấy theo seed đó.
 
-> **Biến môi trường:** `BASE_URL=http://localhost:8080/api/v1`; `DEV_PASSWORD` là mật khẩu truyền vào `-v pw=` khi nạp seed.
-
-> **Yêu cầu chung:** Server đang chạy, DB đã được seed dữ liệu mẫu (xem `docker/seed/seed_dev.sql`).
-
----
-
-## Trạng thái
-
-| Giá trị | Ý nghĩa |
-|---------|---------|
-| Đạt | Kiểm thử thành công |
-| Không đạt | Kiểm thử thất bại |
-| Bỏ qua | Không chạy kiểm thử |
-| `$JWT_STUDENT` | JWT của tài khoản sinh viên test (lấy từ TC01) |
-| `$JWT_ADMIN` | JWT của tài khoản admin test |
-| `$ENROLL_ID` | `enrollmentId` lấy từ TC04 |
-
----
-
-## Ma trận kiểm thử
-
-| Mã TC | Mô tả | Endpoint | Điều kiện tiên quyết | Kết quả mong đợi | Lệnh / Script | Kết quả | Ngày chạy |
-|-------|-------|----------|----------------------|-----------------|---------------|---------|-----------|
-| **TC01** | Đăng nhập sinh viên thành công | `POST /auth/login` | DB có tài khoản sinh viên `SV00001`/`$DEV_PASSWORD`; đang trong khung giờ `loginOpensAt`–`closesAt`; đợt đăng ký ở trạng thái OPEN | HTTP 200; body chứa `accessToken`, `tokenType: "Bearer"`, `expiresIn > 0` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" \| jq .` | | |
-| **TC02** | Đăng nhập ngoài giờ (LOGIN_NOT_OPEN) | `POST /auth/login` | DB có tài khoản sinh viên `SV00001`; thời gian server **trước** `loginOpensAt` hoặc **sau** `closesAt` (có thể mock bằng cách set `loginOpensAt` ở tương lai) | HTTP 403; body `{"code":"LOGIN_NOT_OPEN","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" \| jq .` | | |
-| **TC03** | Admin đăng nhập bị khóa khi đợt OPEN (ADMIN_LOGIN_LOCKED) | `POST /auth/login` | DB có tài khoản admin `admin`; đợt đăng ký đang ở trạng thái **OPEN**; đang trong khung giờ hợp lệ | HTTP 403; body `{"code":"ADMIN_LOGIN_LOCKED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" -d "{\"code\":\"admin\",\"password\":\"$DEV_PASSWORD\"}" \| jq .` | | |
-| **TC04** | Đăng ký 1 lớp thành công | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ (từ TC01); đợt đăng ký OPEN; lớp `sectionId=1001` còn chỗ trống; sinh viên chưa đăng ký lớp/học phần này | HTTP 201; body có `items[0].enrollmentId`, `items[0].sectionId == 1001`; header `X-Idempotent-Replay: false` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc04-$(date +%s)" -d '{"sectionIds":[1001]}' \| jq .` | | |
-| **TC05** | Đăng ký khi lớp đã đầy (SECTION_FULL) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; lớp `sectionId=1099` có `enrolledCount == capacity` (seed trước) | HTTP 409; body `{"code":"SECTION_FULL","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc05-$(date +%s)" -d '{"sectionIds":[1099]}' \| jq .` | | |
-| **TC06** | Đăng ký trùng lớp (SECTION_ALREADY_ENROLLED) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; sinh viên **đã đăng ký** lớp `sectionId=1001` (TC04 đã chạy thành công) | HTTP 409; body `{"code":"SECTION_ALREADY_ENROLLED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc06-$(date +%s)" -d '{"sectionIds":[1001]}' \| jq .` | | |
-| **TC07** | Đăng ký trùng học phần ở lớp khác (COURSE_ALREADY_ENROLLED) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; sinh viên đã đăng ký lớp `1001` (courseCode `INT3306`); lớp `sectionId=1002` cùng courseCode `INT3306` nhưng khác lớp | HTTP 409; body `{"code":"COURSE_ALREADY_ENROLLED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc07-$(date +%s)" -d '{"sectionIds":[1002]}' \| jq .` | | |
-| **TC08** | Đăng ký trùng ca học (SESSION_CONFLICT) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; sinh viên đã đăng ký lớp `1001` (session bitmask có bit 1); lớp `sectionId=1003` có session bitmask giao với lớp đã đăng ký | HTTP 422; body `{"code":"SESSION_CONFLICT","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc08-$(date +%s)" -d '{"sectionIds":[1003]}' \| jq .` | | |
-| **TC09** | Đăng ký vượt giới hạn tín chỉ (CREDIT_LIMIT_EXCEEDED) | `POST /enrollments` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; sinh viên đã đăng ký đủ `creditLimit` tín chỉ (seed đăng ký nhiều lớp trước); lớp `sectionId=1010` còn chỗ và không trùng ca | HTTP 422; body `{"code":"CREDIT_LIMIT_EXCEEDED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc09-$(date +%s)" -d '{"sectionIds":[1010]}' \| jq .` | | |
-| **TC10** | Gửi lại cùng Idempotency-Key — phát lại 201 (idempotent replay) | `POST /enrollments` | TC04 đã thành công với key `IDEMPOTENCY_KEY_TC10`; sử dụng **chính xác cùng key và payload** | HTTP 201; body giống hệt TC04; header `X-Idempotent-Replay: true` | `export IK="test-tc10-fixed-key"; curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: $IK" -d '{"sectionIds":[1001]}' \| jq . && echo "---replay---" && curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: $IK" -d '{"sectionIds":[1001]}' -v 2>&1 \| grep -E "X-Idempotent|HTTP"` | | |
-| **TC11** | Gửi lại cùng Idempotency-Key nhưng khác sectionIds (IDEMPOTENCY_KEY_REUSED) | `POST /enrollments` | TC10 đã dùng key `test-tc10-fixed-key` với payload `{"sectionIds":[1001]}`; tái sử dụng key đó với payload **khác** | HTTP 409; body `{"code":"IDEMPOTENCY_KEY_REUSED","message":"...","details":null}` | `curl -s -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $JWT_STUDENT" -H "Content-Type: application/json" -H "Idempotency-Key: test-tc10-fixed-key" -d '{"sectionIds":[1005]}' \| jq .` | | |
-| **TC12** | Hủy đăng ký thành công | `DELETE /enrollments/{enrollmentId}` | Có `$JWT_STUDENT` hợp lệ; đợt OPEN; `$ENROLL_ID` là enrollmentId hợp lệ thuộc sinh viên này (từ TC04) | HTTP 204; không có nội dung trả về; đăng ký bị xóa khỏi DB | `curl -s -o /dev/null -w "%{http_code}" -X DELETE "$BASE_URL/enrollments/$ENROLL_ID" -H "Authorization: Bearer $JWT_STUDENT"` | | |
-| **TC13** | Kiểm thử tải đồng thời (concurrency stress test) | `POST /enrollments` | *(Ngoài phạm vi kiểm thử thủ công đơn lẻ — xem `load/scripts/` và T3)* | Không có race condition; `enrolledCount` không vượt `capacity`; không có bản ghi đăng ký trùng | *(Ngoài phạm vi kiểm thử thủ công đơn lẻ — xem `load/scripts/` và T3)* | N/A | N/A |
-| **TC14** | Hủy lần hai trả 404 (ENROLLMENT_NOT_FOUND) | `DELETE /enrollments/{enrollmentId}` | TC12 đã hủy thành công `$ENROLL_ID`; gọi lại DELETE với cùng `$ENROLL_ID` | HTTP 404; body `{"code":"ENROLLMENT_NOT_FOUND","message":"...","details":null}` | `curl -s -X DELETE "$BASE_URL/enrollments/$ENROLL_ID" -H "Authorization: Bearer $JWT_STUDENT" \| jq .` | | |
-
----
-
-## Hướng dẫn thực thi
-
-### 1. Chuẩn bị môi trường
+## Chuẩn bị
 
 ```bash
-# Khởi động server
-./mvnw spring-boot:run
-
-# Seed dữ liệu mẫu
-psql -U postgres -d vnu_registration -f scripts/seed.sql
-
-# Đặt biến môi trường
+docker compose up -d
+docker compose exec -T postgres psql -U dkhp_app -d dkhp -v pw="$DEV_PASSWORD" -f - < docker/seed/seed_dev.sql
 export BASE_URL="http://localhost:8080/api/v1"
 ```
 
-### 2. Lấy JWT sinh viên (TC01)
+`DEV_PASSWORD` là mật khẩu đã truyền vào `-v pw=` khi seed. Hai hàm hỗ trợ lấy JWT và gửi đăng ký:
 
 ```bash
-export JWT_STUDENT=$(curl -s -X POST "$BASE_URL/auth/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" \
-  | jq -r '.accessToken')
-echo "JWT_STUDENT=$JWT_STUDENT"
+login() {
+  curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" \
+    -d "{\"code\":\"$1\",\"password\":\"$DEV_PASSWORD\"}" | jq -r '.accessToken'
+}
+enroll() {  # enroll <jwt> <idempotency-key> <json-array>
+  curl -s -i -X POST "$BASE_URL/enrollments" -H "Authorization: Bearer $1" \
+    -H "Content-Type: application/json" -H "Idempotency-Key: $2" -d "{\"sectionIds\":$3}"
+}
+export JWT=$(login SV00001)
 ```
 
-### 3. Lấy enrollmentId sau TC04
+Mọi lỗi có dạng `{"code":"...","message":"...","details":...}`.
+
+## Danh sách ca kiểm thử
+
+| Mã | Nội dung | Điều kiện | Kết quả mong đợi |
+| --- | --- | --- | --- |
+| TC01 | Sinh viên đăng nhập | Đợt `OPEN`, đang trong giờ đăng nhập | 200, có `accessToken`, `tokenType` = `Bearer`, `expiresIn` = 3600 |
+| TC02 | Sinh viên đăng nhập ngoài giờ | `login_opens_at` đặt ở tương lai | 403 `LOGIN_NOT_OPEN` |
+| TC03 | Admin đăng nhập khi đợt đang mở | Đợt `OPEN`, trong `[opensAt, closesAt)` | 403 `ADMIN_LOGIN_LOCKED` |
+| TC04 | Đăng ký một lớp | SV00001 chưa đăng ký gì, lớp 1 còn chỗ | 201, `items[0].sectionId` = 1, không có header `X-Idempotent-Replay` |
+| TC05 | Lớp đầy | SV00002 và SV00003 đã đăng ký lớp 11 (sĩ số 2) | 409 `SECTION_FULL` |
+| TC06 | Đăng ký lại lớp đã có | Sau TC04, gửi lớp 1 với key mới | 409 `SECTION_ALREADY_ENROLLED` |
+| TC07 | Lớp khác cùng học phần | Sau TC04, gửi lớp 2 (cũng INT3001) | 409 `COURSE_ALREADY_ENROLLED` |
+| TC08 | Trùng ca | Sau TC04, gửi lớp 13 (cùng ca T2 ca 1, T4 ca 1 với lớp 1) | 422 `SESSION_CONFLICT` |
+| TC09 | Vượt tín chỉ | SV00004 gửi một lần các lớp 1, 3, 5, 6, 7, 9, 18 (22 tín chỉ, hạn mức 20) | 422 `CREDIT_LIMIT_EXCEEDED`, không lớp nào được ghi |
+| TC10 | Gửi lại cùng key, cùng body | Gửi hai lần cùng key | Lần hai 201, body giống lần một, có `X-Idempotent-Replay: true` |
+| TC11 | Cùng key, khác body | Dùng lại key của TC10 với lớp khác | 409 `IDEMPOTENCY_KEY_REUSED` |
+| TC12 | Hủy đăng ký | `ENROLL_ID` lấy từ TC04 | 204, `enrolledCount` của lớp 1 giảm 1 |
+| TC13 | Nhiều người tranh cùng lớp | Chạy `load/scripts/concurrent_test.sh` | Không vượt sĩ số, không lượt trùng, bất biến PASS |
+| TC14 | Hủy lần hai | Sau TC12 | 404 `ENROLLMENT_NOT_FOUND` |
+
+## Lệnh chạy
+
+TC01:
 
 ```bash
-export ENROLL_ID=$(curl -s -X POST "$BASE_URL/enrollments" \
-  -H "Authorization: Bearer $JWT_STUDENT" \
-  -H "Content-Type: application/json" \
-  -H "Idempotency-Key: test-tc04-initial" \
-  -d '{"sectionIds":[1001]}' \
-  | jq -r '.items[0].enrollmentId')
-echo "ENROLL_ID=$ENROLL_ID"
+curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" \
+  -d "{\"code\":\"SV00001\",\"password\":\"$DEV_PASSWORD\"}" | jq .
 ```
 
-### 4. Thứ tự thực thi khuyến nghị
+TC02: dời giờ mở đăng nhập sang ngày hôm sau, chạy lại lệnh TC01, sau đó khôi phục giá trị cũ:
 
+```bash
+docker compose exec postgres psql -U dkhp_app -d dkhp -c \
+  "UPDATE registration_period SET login_opens_at = now() + interval '1 day' WHERE term = '2026-1';"
 ```
-TC01 → TC02 → TC03 → TC04 → TC05 → TC06 → TC07 → TC08 → TC09
-     → TC10 → TC11 → TC12 → TC14
+
+Khôi phục sau khi chạy TC02:
+
+```bash
+docker compose exec postgres psql -U dkhp_app -d dkhp -c   "UPDATE registration_period SET login_opens_at = now() - interval '1 hour' WHERE term = '2026-1';"
 ```
 
-> [!IMPORTANT]
-> TC06 và TC07 phụ thuộc vào TC04 đã thành công.
-> TC11 phụ thuộc vào TC10 đã thực thi trước.
-> TC14 phụ thuộc vào TC12 đã thực thi trước.
+TC03:
 
-> [!NOTE]
-> TC02 và TC03 yêu cầu thay đổi dữ liệu DB hoặc thời gian hệ thống để mô phỏng điều kiện ngoài giờ / đợt OPEN. Có thể dùng lệnh SQL:
-> ```sql
-> -- Mô phỏng TC02: đẩy loginOpensAt về tương lai
-> UPDATE registration SET login_opens_at = NOW() + INTERVAL '1 day';
-> -- Khôi phục
-> UPDATE registration SET login_opens_at = NOW() - INTERVAL '1 hour';
-> ```
+```bash
+curl -s -X POST "$BASE_URL/auth/login" -H "Content-Type: application/json" \
+  -d "{\"code\":\"admin\",\"password\":\"$DEV_PASSWORD\"}" | jq .
+```
 
-> [!WARNING]
-> TC13 yêu cầu môi trường Docker với nhiều container client đồng thời. Xem `load/scripts/` và tài liệu T3 để biết chi tiết cấu hình.
+TC04 (lưu lại `enrollmentId`):
 
----
+```bash
+export ENROLL_ID=$(enroll "$JWT" tc04 '[1]' | sed -n '/^{/p' | jq -r '.items[0].enrollmentId')
+```
 
-## Tóm tắt coverage
+TC05:
 
-| Nhóm | TC | Trạng thái |
-|------|----|-----------|
-| Xác thực | TC01, TC02, TC03 | |
-| Đăng ký — thành công | TC04 | |
-| Đăng ký — lỗi 409 | TC05, TC06, TC07, TC11 | |
-| Đăng ký — lỗi 422 | TC08, TC09 | |
-| Idempotency | TC10, TC11 | |
-| Hủy đăng ký | TC12, TC14 | |
-| Kiểm thử tải | TC13 | Ngoài phạm vi |
+```bash
+enroll "$(login SV00002)" tc05-a '[11]'
+enroll "$(login SV00003)" tc05-b '[11]'
+enroll "$JWT" tc05 '[11]'
+```
+
+TC06 đến TC08:
+
+```bash
+enroll "$JWT" tc06 '[1]'
+enroll "$JWT" tc07 '[2]'
+enroll "$JWT" tc08 '[13]'
+```
+
+TC09:
+
+```bash
+enroll "$(login SV00004)" tc09 '[1,3,5,6,7,9,18]'
+```
+
+TC10 và TC11:
+
+```bash
+enroll "$JWT" tc10 '[3]'
+enroll "$JWT" tc10 '[3]'   # lần hai: xem header X-Idempotent-Replay
+enroll "$JWT" tc10 '[5]'   # TC11
+```
+
+TC12 và TC14 (chạy cùng một lệnh hai lần):
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -X DELETE "$BASE_URL/enrollments/$ENROLL_ID" -H "Authorization: Bearer $JWT"
+```
+
+## Thứ tự
+
+Chạy theo thứ tự TC01, TC03, TC04 đến TC12, TC14, TC02. TC06, TC07, TC08, TC12 cần TC04 chạy trước; TC11 cần TC10; TC14 cần TC12. TC02 thay đổi giờ đăng nhập nên chạy cuối cùng. TC13 chạy riêng, xem `load/README.md`.
+
+## Kết quả
+
+| Mã | Kết quả (Đạt / Không đạt / Bỏ qua) | Ngày chạy | Ghi chú |
+| --- | --- | --- | --- |
+| TC01 | | | |
+| TC02 | | | |
+| TC03 | | | |
+| TC04 | | | |
+| TC05 | | | |
+| TC06 | | | |
+| TC07 | | | |
+| TC08 | | | |
+| TC09 | | | |
+| TC10 | | | |
+| TC11 | | | |
+| TC12 | | | |
+| TC13 | | | |
+| TC14 | | | |

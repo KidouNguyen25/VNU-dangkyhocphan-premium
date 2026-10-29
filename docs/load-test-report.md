@@ -1,8 +1,6 @@
 # Báo cáo Thử tải (Load Test Report)
 
-> **Trạng thái:** số liệu dưới đây đo trên **một máy Kaggle** (backend, PostgreSQL và k6 chạy chung). Các mục chỉ đo được ở bản bốn máy được ghi "Chưa đo". Ngưỡng đạt chính thức (D6) chưa chốt, nên kết luận PASS/FAIL ở mục 8 chỉ là tạm thời, theo ngưỡng trong `load/k6/full_scenario.js`.
-
----
+Số liệu dưới đây đo trên một máy Kaggle (backend, PostgreSQL và k6 chạy chung). Mục 6.1 đo lại cùng kịch bản trên một laptop Ryzen 5 5625U, cũng là một máy. Các mục chỉ đo được ở bản bốn máy được ghi "Chưa đo". Ngưỡng đạt chính thức (D6) chưa chốt, nên kết luận PASS/FAIL ở mục 8 chỉ là tạm thời, theo ngưỡng trong `load/k6/full_scenario.js`.
 
 ## 1. Tổng quan
 
@@ -18,8 +16,6 @@
 | Công cụ chạy | `load/notebooks/loadtest_kaggle.ipynb` |
 | Bản chạy trên Kaggle | notebook `nguyentoan25/qc-dangkyhocphan-vnu-premium`, Version 5 |
 
----
-
 ## 2. Cấu hình máy
 
 Backend, PostgreSQL và k6 cùng chạy trong một container, tranh nhau CPU.
@@ -33,8 +29,6 @@ Backend, PostgreSQL và k6 cùng chạy trong một container, tranh nhau CPU.
 | PostgreSQL | 16.15 |
 | k6 | v0.54.0 |
 | Spring Boot | jar `course-registration-0.1.0-SNAPSHOT.jar` (33,0 MB) |
-
----
 
 ## 3. Tham số thử tải
 
@@ -64,8 +58,6 @@ Tổng            120 s
 ```
 
 Trước mỗi mức quét, notebook xóa `enrollment`, `idempotency_record` và đặt `enrolled_count = 0`, nên các mức độc lập nhau.
-
----
 
 ## 4. Kết quả đo lần chạy 1000 VU
 
@@ -121,13 +113,11 @@ Chưa đo. Bản Kaggle chạy qua `127.0.0.1`, không có độ trễ mạng.
 | Tỷ lệ phát lại | 0 % |
 | Số dòng `idempotency_record` sau tải | 2 807 |
 
-Kịch bản k6 tạo khóa mới cho mỗi request nên **đường phát lại chưa được thử**. Đây là giới hạn của kịch bản, không phải bằng chứng đường phát lại hoạt động tốt.
-
----
+Kịch bản k6 tạo khóa mới cho mỗi request nên đường phát lại chưa được thử. Đây là giới hạn của kịch bản, không phải bằng chứng đường phát lại hoạt động tốt.
 
 ## 5. Kết quả đo riêng bước đăng nhập
 
-> Đăng nhập (bcrypt) nặng hơn các endpoint thông thường do cost factor của hash.
+Đăng nhập (bcrypt) nặng hơn các endpoint thông thường do cost factor của hash.
 
 | Chỉ số | Giá trị |
 |--------|---------|
@@ -138,8 +128,6 @@ Kịch bản k6 tạo khóa mới cho mỗi request nên **đường phát lại
 | Tỷ lệ login không trả 200 | 0,03 % |
 
 p50 của đăng nhập (10,6 s) cao hơn p50 toàn hệ thống (6,0 s) gần gấp đôi.
-
----
 
 ## 6. Kết quả quét theo ngưỡng 50 đến 500 VU
 
@@ -158,13 +146,49 @@ Mỗi mức chạy 120 giây. "Đạt QC" theo ngưỡng của script: p95 < 3 0
 | 450 | 7 216 | 9 290 | 139,8 | PASS | KHÔNG ĐẠT |
 | 500 | 7 775 | 9 744 | 137,0 | PASS | KHÔNG ĐẠT |
 
-**Mức tải chịu được trên máy này: 100 VU** (mức cao nhất mà mọi mức từ 50 trở lên đều đạt).
+Mức tải chịu được trên máy này là 100 VU (mức cao nhất mà mọi mức từ 50 trở lên đều đạt).
 
-Bảng đầy đủ hơn (p50, max, p95 riêng của đăng nhập và đăng ký, CPU từng mức) nằm trong `sweep.csv` của gói `load_results.zip` ở tab Output của notebook. Gói này **chưa được tải về** `load/results/`.
+Bảng đầy đủ hơn (p50, max, p95 riêng của đăng nhập và đăng ký, CPU từng mức) nằm trong `sweep.csv` của gói `load_results.zip` ở tab Output của notebook. Gói này chưa được tải về `load/results/`.
 
-**Cột tỷ lệ lỗi của lần quét này không dùng được.** Kịch bản k6 chỉ ghi giá trị vào `error_rate` khi có lỗi, nên metric luôn báo 100 % nếu có ít nhất một lỗi, kể cả khi chỉ có vài yêu cầu. Cột này hiện 0 % từ 50 đến 300 VU và 100 % từ 350 VU, nghĩa là từ 350 VU có ít nhất một lỗi, không phải mọi yêu cầu đều lỗi. Notebook đã sửa (số lần lỗi chia tổng yêu cầu) nhưng chưa chạy lại, nên lần quét cần chạy lại để có tỷ lệ lỗi đúng.
+Cột tỷ lệ lỗi của lần quét này không dùng được. Kịch bản k6 chỉ ghi giá trị vào `error_rate` khi có lỗi, nên metric luôn báo 100 % nếu có ít nhất một lỗi, kể cả khi chỉ có vài yêu cầu. Cột này hiện 0 % từ 50 đến 300 VU và 100 % từ 350 VU, nghĩa là từ 350 VU có ít nhất một lỗi, không phải mọi yêu cầu đều lỗi. Notebook đã sửa (số lần lỗi chia tổng yêu cầu) nhưng chưa chạy lại, nên lần quét cần chạy lại để có tỷ lệ lỗi đúng.
 
----
+### 6.1 Đo lại trên máy cá nhân
+
+Chạy lại cùng kịch bản, cùng commit `8ae5d7e`, ngày 29/10/2026 từ 12:50 đến 13:13 (UTC+7), trên laptop của nhóm. Vẫn là một máy: backend, PostgreSQL và k6 chạy chung, mỗi thành phần trong một container Docker.
+
+| Thành phần | Giá trị |
+|-----------|---------|
+| CPU | AMD Ryzen 5 5625U, 6 nhân / 12 luồng (chip laptop dòng U) |
+| RAM | 15,4 GB |
+| Môi trường | Windows 11, Docker Desktop (WSL2) |
+| Backend | jar build từ `8ae5d7e`, chạy trong `eclipse-temurin:21-jre` với `-Xmx2g` |
+| PostgreSQL | `postgres:16`, schema `docker/initdb/*`, `seed_dev.sql` với 1000 sinh viên |
+| k6 | `grafana/k6:0.54.0`, `load/k6/full_scenario.js` |
+| Giới hạn tốc độ | Nâng gần như vô hạn, giống bản Kaggle |
+
+Tỷ lệ lỗi ở bảng này tính đúng (số lần lỗi chia tổng yêu cầu), không bị lỗi đếm như lần quét Kaggle.
+
+| VU | Yêu cầu | req/s | p50 (ms) | p95 (ms) | p99 (ms) | max (ms) | Login p95 (ms) | Đăng ký p95 (ms) | Lỗi | Bất biến | Đạt QC | p95 Kaggle (ms) |
+|---:|--------:|------:|---------:|---------:|---------:|---------:|---------------:|-----------------:|----:|:--------:|:------:|----------------:|
+| 50 | 10 450 | 86,4 | 7 | 147 | 222 | 459 | 223 | 23 | 0 | PASS | ĐẠT | 137 |
+| 100 | 19 770 | 161,9 | 7 | 272 | 699 | 1 731 | 699 | 74 | 0 | PASS | ĐẠT | 1 795 |
+| 150 | 26 725 | 220,3 | 11 | 665 | 1 412 | 2 606 | 1 412 | 73 | 0 | PASS | ĐẠT | 3 194 |
+| 200 | 24 675 | 202,3 | 46 | 2 186 | 3 337 | 5 366 | 3 338 | 348 | 0 | PASS | ĐẠT | 4 120 |
+| 250 | 27 625 | 227,5 | 47 | 2 853 | 4 322 | 7 759 | 4 321 | 410 | 0 | PASS | ĐẠT | 5 363 |
+| 300 | 32 740 | 268,5 | 57 | 2 837 | 4 152 | 6 120 | 4 153 | 309 | 0 | PASS | ĐẠT | 5 853 |
+| 350 | 34 485 | 283,2 | 92 | 3 136 | 4 081 | 5 061 | 4 081 | 626 | 0 | PASS | KHÔNG ĐẠT (p95) | 6 391 |
+| 400 | 33 375 | 275,0 | 191 | 3 703 | 4 871 | 6 645 | 4 871 | 729 | 0 | PASS | KHÔNG ĐẠT (p95) | 6 707 |
+| 450 | 31 385 | 257,7 | 330 | 4 286 | 6 084 | 9 623 | 6 084 | 1 241 | 0 | PASS | KHÔNG ĐẠT | 7 216 |
+| 500 | 33 835 | 278,1 | 298 | 4 562 | 5 942 | 7 706 | 5 942 | 1 328 | 0 | PASS | KHÔNG ĐẠT | 7 775 |
+| 1000 | 30 536 | 250,1 | 1 895 | 8 258 | 11 588 | 16 166 | 11 575 | 4 603 | 0 | PASS | KHÔNG ĐẠT | 13 418 |
+
+Mức tải chịu được trên máy này là 300 VU, so với 100 VU trên Kaggle.
+
+- Thông lượng chạm trần khoảng 270 đến 285 req/s, gấp đôi Kaggle (khoảng 140 req/s).
+- Từ 100 VU trở lên, p95 thấp hơn Kaggle khoảng 1,6 đến 6,5 lần.
+- Không có yêu cầu lỗi nào ở cả 11 lần chạy. Bảy bất biến PASS ở mọi mức.
+- p95 của đăng nhập gần bằng p99 toàn hệ thống ở mọi mức, còn p95 của đăng ký thấp hơn nhiều (4,6 s so với 11,6 s ở 1000 VU). Số này củng cố nhận xét đăng nhập là phần nặng nhất.
+- 300 VU nhỉnh hơn 250 VU một chút. Laptop tăng xung không đều giữa các lượt, và mỗi mức chỉ chạy một lần, nên đọc số từng mức với sai số đáng kể.
 
 ## 7. Trạng thái dữ liệu sau tải
 
@@ -172,7 +196,7 @@ Sau lần chạy 1000 VU, chạy `docker/verify/invariants.sql` (hoặc `bash lo
 
 | Kiểm tra | Kết quả |
 |---------|---------|
-| Kết quả `invariants.sql` (a đến g) | **PASS**, cả bảy truy vấn trả 0 dòng |
+| Kết quả `invariants.sql` (a đến g) | PASS, cả bảy truy vấn trả 0 dòng |
 | Output đầy đủ | Xem [Phụ lục A](#phụ-lục-a-output-invariantssql) |
 | Tổng bản ghi enrollment sau tải | 103 (cả 103 ở trạng thái `ENROLLED`) |
 | Bản ghi idempotency `PROCESSING` mồ côi | NO, sạch (0) |
@@ -180,8 +204,6 @@ Sau lần chạy 1000 VU, chạy `docker/verify/invariants.sql` (hoặc `bash lo
 | Lớp bị over-enroll (vượt capacity) | NO, không có |
 
 Bất biến cũng PASS ở cả 10 mức quét (cột Bất biến, mục 6).
-
----
 
 ## 8. Ngưỡng đạt (Thresholds)
 
@@ -195,9 +217,7 @@ Bất biến cũng PASS ở cả 10 mức quét (cột Bất biến, mục 6).
 | Không over-enroll | Bắt buộc | PASS | Có |
 | Không PROCESSING mồ côi | Bắt buộc | PASS | Có |
 
-**Kết luận tạm thời:** hệ thống đúng về dữ liệu ở mọi mức tải đã thử, nhưng không đạt ngưỡng độ trễ tạm ở 1000 VU (và từ 150 VU trở lên) trên máy 4 vCPU dùng chung.
-
----
+Kết luận tạm thời: hệ thống đúng về dữ liệu ở mọi mức tải đã thử, nhưng không đạt ngưỡng độ trễ tạm ở 1000 VU (và từ 150 VU trở lên) trên máy 4 vCPU dùng chung.
 
 ## 9. Nhận xét
 
@@ -208,6 +228,7 @@ Bất biến cũng PASS ở cả 10 mức quét (cột Bất biến, mục 6).
 5. Lỗi rất ít. Ở 1000 VU chỉ có 4 yêu cầu 5xx (một 500, ba 503) trên 13 863, tức 0,03 %. Chưa điều tra nguyên nhân các lỗi này. Hệ thống chậm đi thay vì trả lỗi hàng loạt khi quá tải.
 6. Ba lần chạy 1000 VU trên Kaggle cho p95 lần lượt 12 479 ms (commit `b3438c5`, 15 763 yêu cầu), 18 668 ms (`3131630`, 11 956 yêu cầu) và 13 418 ms (`8ae5d7e`, 13 863 yêu cầu). Chênh lệch này lớn hơn mọi khác biệt do code, nên không so sánh hiệu năng giữa các commit bằng các số này. Dùng chúng để biết bậc độ lớn, không để so từng phần trăm.
 7. Điều kiện đo làm số liệu xấu đi so với triển khai thật. k6 chạy chung máy nên giành CPU của backend. Đổi lại, không có độ trễ mạng và giới hạn tốc độ đã bị tắt. Hai yếu tố này khác chiều nhau, nên không thể suy ra số bốn máy từ số này.
+8. Phần cứng dời điểm gãy nhưng không đổi hình dạng kết quả. Trên laptop 6 nhân (mục 6.1), mức chịu được tăng từ 100 lên 300 VU và thông lượng trần gấp đôi, nhưng 1000 VU vẫn không đạt (p95 8,3 s, đăng nhập p95 11,6 s). Muốn đạt 1000 VU với kịch bản đăng nhập liên tục thì phải thêm CPU cho backend, hoặc đo bằng kịch bản sát hành vi thật hơn (đăng nhập một lần).
 
 ## Phụ lục A: Output `invariants.sql`
 
@@ -224,8 +245,6 @@ Kết quả sau lần chạy 1000 VU (commit `8ae5d7e`). Mỗi truy vấn phải
 ```
 
 Tóm tắt: `violating_rows_per_invariant` bằng 0 ở cả bảy mục, `result` = `PASS`, `enrollment_total` = 103, `idempotency_processing` = 0.
-
----
 
 ## Phụ lục B: Biểu đồ theo thời gian
 

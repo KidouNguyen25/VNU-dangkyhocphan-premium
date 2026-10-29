@@ -1,33 +1,11 @@
 # Hướng dẫn triển khai 4 máy qua Tailscale
 
-> Tài liệu này mô tả cách triển khai hệ thống đăng ký học phần VNU trên 4 máy vật lý/VM kết nối với nhau qua mạng Tailscale riêng tư.
+Hướng dẫn triển khai hệ thống trên 4 máy (máy thật hoặc VM) kết nối với nhau qua Tailscale.
 
----
 
 ## 1. Kiến trúc tổng quan
 
 ![Bốn máy trong mạng Tailscale: client gọi API qua cổng 8080, chỉ backend vào cổng 5432 của DB](assets/luong-trien-khai.gif)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Tailscale VPN (tailnet)                │
-│                                                             │
-│  ┌───────────────┐        :5432        ┌────────────────┐  │
-│  │   máy-db      │◄────────────────────│  máy-backend   │  │
-│  │ 100.x.x.1     │  (chỉ từ backend)   │  100.x.x.2     │  │
-│  │  PostgreSQL   │                     │  Spring Boot   │  │
-│  └───────────────┘                     └───────┬────────┘  │
-│                                                │ :8080      │
-│                              ┌─────────────────┴──────────┐│
-│                              │                            ││
-│                   ┌──────────┴────┐          ┌────────────┴┐│
-│                   │  máy-client-1 │          │ máy-client-2 ││
-│                   │  100.x.x.3   │          │  100.x.x.4  ││
-│                   │  SV00001–500  │          │ SV00501–1000 ││
-│                   │     (k6)      │          │    (k6)     ││
-│                   └───────────────┘          └─────────────┘│
-└─────────────────────────────────────────────────────────────┘
-```
 
 | Máy | Tailscale IP | Vai trò |
 |-----|-------------|---------|
@@ -36,20 +14,18 @@
 | `máy-client-1` | `100.x.x.3` | Sinh tải k6, 500 tài khoản SV00001–SV00500 |
 | `máy-client-2` | `100.x.x.4` | Sinh tải k6, 500 tài khoản SV00501–SV01000 |
 
-> **Nguyên tắc bảo mật cốt lõi:** Cổng 5432 (PostgreSQL) chỉ mở với máy-backend. Máy-client không được phép kết nối thẳng vào DB.
+Cổng 5432 (PostgreSQL) chỉ mở cho máy-backend. Máy client không kết nối trực tiếp vào DB.
 
----
 
 ## 2. Yêu cầu trước khi bắt đầu
 
-- [x] **Tailscale đã cài** trên cả 4 máy (`tailscale version` báo OK)
-- [x] **4 máy đã join cùng một tailnet** (`tailscale status` thấy đủ 4 peer)
-- [x] Ghi lại Tailscale IP của từng máy: `tailscale ip -4`
-- [x] Docker + Docker Compose v2 đã cài trên `máy-db` và `máy-backend`
-- [x] k6 đã cài trên `máy-client-1` và `máy-client-2`
-- [x] Repo đã clone được (SSH key hoặc HTTPS token đã cấu hình)
+- Tailscale đã cài trên cả 4 máy (`tailscale version` báo OK)
+- 4 máy đã join cùng một tailnet (`tailscale status` thấy đủ 4 peer)
+- Ghi lại Tailscale IP của từng máy: `tailscale ip -4`
+- Docker và Docker Compose v2 đã cài trên `máy-db`; JDK 17 trở lên đã cài trên `máy-backend`
+- k6 đã cài trên `máy-client-1` và `máy-client-2`
+- Repo đã clone được (SSH key hoặc HTTPS token đã cấu hình)
 
----
 
 ## 3. Cấu hình máy-db
 
@@ -83,7 +59,7 @@ API_PORT=8080
 HEALTH_ALLOWED_IPS=127.0.0.1
 ```
 
-> **Quan trọng:** Đặt `DB_BIND_ADDR=<tailscale-ip-db>` khiến Docker bind cổng 5432 lên giao diện Tailscale thay vì `127.0.0.1`. Nhờ đó máy-backend trên tailnet có thể kết nối, nhưng internet công cộng không thể.
+Đặt `DB_BIND_ADDR=<tailscale-ip-db>` để Docker bind cổng 5432 lên địa chỉ Tailscale thay vì `127.0.0.1`. Máy trong tailnet kết nối được, Internet công cộng thì không.
 
 ### 3.3 Khởi động PostgreSQL
 
@@ -95,115 +71,71 @@ docker compose up -d postgres
 docker compose ps
 ```
 
-Kết quả mong đợi: cột `STATUS` hiển thị `healthy`.
+Cột `STATUS` phải là `healthy`.
 
 ### 3.4 Kiểm tra port
 
-**Từ máy-backend** (kết nối thành công):
+Từ máy-backend (kết nối được):
 ```bash
 nc -zv <tailscale-ip-db> 5432
 # Connection to 100.x.x.1 5432 port [tcp/postgresql] succeeded!
 ```
 
-**Từ máy-client-1 hoặc máy-client-2** (kết nối bị từ chối):
+Từ máy client (bị chặn):
 ```bash
 nc -zv <tailscale-ip-db> 5432
 # nc: connect to 100.x.x.1 port 5432 (tcp) failed: Connection refused
 ```
 
-Nếu client vẫn kết nối được, hãy kiểm tra lại [Tailscale ACL](#7-tailscale-acl-mẫu).
+Nếu client vẫn kết nối được, kiểm tra lại [Tailscale ACL](#7-tailscale-acl-mẫu).
 
----
 
 ## 4. Cấu hình máy-backend
 
-### 4.1 Clone repo và tạo `.env`
+### 4.1 Clone repo
 
 ```bash
 git clone <repo-url> VNU-dangkyhocphan-premium
 cd VNU-dangkyhocphan-premium
-cp .env.example .env
 ```
 
-### 4.2 Chỉnh `.env` trên máy-backend
+### 4.2 Chạy backend
 
-```dotenv
-# ── PostgreSQL (nằm trên máy-db) ─────────────────────────────
-POSTGRES_DB=dkhp
-POSTGRES_USER=dkhp_app
-POSTGRES_PASSWORD=<mat-khau-postgres-manh>   # khớp với máy-db
-DB_USER=dkhp_api
-DB_PASSWORD=<mat-khau-api-user-manh>         # khớp với máy-db
-
-# DB_BIND_ADDR trỏ sang máy-db (không phải máy này)
-# Biến này dùng để backend biết kết nối vào đâu
-DB_BIND_ADDR=<tailscale-ip-db>
-DB_PORT=5432
-
-# ── Spring Boot API ───────────────────────────────────────────
-# API lắng nghe trên Tailscale IP của máy-backend
-API_BIND_ADDR=<tailscale-ip-backend>
-API_PORT=8080
-
-# JWT
-JWT_SECRET=<openssl rand -base64 48>
-
-# Chỉ cho phép máy-backend và máy dev gọi /health
-HEALTH_ALLOWED_IPS=<tailscale-ip-backend>,<tailscale-ip-dev>
-
-# Giới hạn kết nối pool
-DB_POOL_SIZE=20
-RATE_LIMIT_IP=600
-RATE_LIMIT_ACCOUNT=120
-RATE_LIMIT_LOGIN=10
-```
-
-> **Lưu ý về `SPRING_DATASOURCE_URL`:** Trong `docker-compose.yml`, service `api` dùng hostname nội bộ `postgres` để kết nối DB. Vì trên máy-backend **không chạy** service `postgres`, cần tách riêng cấu hình. Xem mục 4.3.
-
-### 4.3 Khởi động API — chế độ DB ngoài (remote DB)
-
-Vì PostgreSQL nằm trên máy-db (không phải `localhost`), cần override `SPRING_DATASOURCE_URL`:
+Trong `docker-compose.yml`, service `api` gắn cứng `SPRING_DATASOURCE_URL` vào service `postgres` trên cùng máy và phụ thuộc vào service đó. Vì vậy trên máy-backend không dùng được `docker compose up api`. Chạy Spring Boot trực tiếp và cấu hình qua biến môi trường (xem `src/main/resources/application.yml`):
 
 ```bash
-# Build image trước
-docker compose build api
+export DB_URL="jdbc:postgresql://<tailscale-ip-db>:5432/dkhp"
+export DB_USER=dkhp_api
+export DB_PASSWORD=<mat-khau-api-user>    # trùng với máy-db
+export SERVER_ADDRESS=<tailscale-ip-backend>
+export SERVER_PORT=8080
+export JWT_SECRET="$(openssl rand -base64 48)"
+export HEALTH_ALLOWED_IPS=<tailscale-ip-backend>,<tailscale-ip-dev>
+export DB_POOL_SIZE=20
+export RATE_LIMIT_IP=600
+export RATE_LIMIT_ACCOUNT=120
+export RATE_LIMIT_LOGIN=10
 
-# Chạy với DB trỏ sang máy-db qua Tailscale
-SPRING_DATASOURCE_URL="jdbc:postgresql://<tailscale-ip-db>:5432/dkhp" \
-  docker compose up -d api
+./mvnw spring-boot:run
 ```
 
-Hoặc thêm biến này vào file `.env`:
+Nếu muốn chạy backend bằng Docker trên máy này, cần sửa `docker-compose.yml` để `SPRING_DATASOURCE_URL` lấy từ biến môi trường và bỏ `depends_on`.
 
-```dotenv
-# Ghi đè URL để trỏ sang máy-db (thêm vào cuối .env)
-SPRING_DATASOURCE_URL=jdbc:postgresql://<tailscale-ip-db>:5432/dkhp
-```
+### 4.3 Kiểm tra API
 
-Sau đó chạy bình thường:
+Từ máy-backend hoặc máy có IP trong `HEALTH_ALLOWED_IPS`:
 
 ```bash
-docker compose up -d api
-docker compose logs -f api
-```
-
-### 4.4 Kiểm tra API
-
-```bash
-# Health check (phải chạy từ máy-backend hoặc máy được liệt kê trong HEALTH_ALLOWED_IPS)
 curl http://<tailscale-ip-backend>:8080/api/v1/health
-
-# Kết quả mong đợi:
-# {"status":"UP","db":"UP"}
+# {"status":"ok","serverTime":"..."}
 ```
+
+Từ máy client:
 
 ```bash
-# Từ máy-client: gọi API bình thường phải thành công
 curl http://<tailscale-ip-backend>:8080/api/v1/sections
-# Trả về danh sách lớp học phần (200 OK)
+# 200, danh sách lớp
 ```
-
----
 
 ## 5. Cấu hình máy-client-1 và máy-client-2
 
@@ -225,7 +157,7 @@ brew install k6
 k6 version
 ```
 
-### 5.2 Clone repo (chỉ cần thư mục `load/`)
+### 5.2 Clone repo
 
 ```bash
 git clone <repo-url> VNU-dangkyhocphan-premium
@@ -237,8 +169,8 @@ cd VNU-dangkyhocphan-premium
 ```bash
 k6 run \
   -e BASE_URL="http://<tailscale-ip-backend>:8080/api/v1" \
-  -e VU_START=1 \
-  -e VU_END=500 \
+  -e STUDENT_PASSWORD="$DEV_PASSWORD" \
+  -e VUS=500 -e ACCOUNT_OFFSET=0 -e ACCOUNT_LIMIT=500 \
   --out json=load/results/result_client1_$(date +%Y%m%d_%H%M%S).json \
   load/k6/full_scenario.js
 ```
@@ -248,24 +180,18 @@ k6 run \
 ```bash
 k6 run \
   -e BASE_URL="http://<tailscale-ip-backend>:8080/api/v1" \
-  -e VU_START=501 \
-  -e VU_END=1000 \
+  -e STUDENT_PASSWORD="$DEV_PASSWORD" \
+  -e VUS=500 -e ACCOUNT_OFFSET=500 -e ACCOUNT_LIMIT=500 \
   --out json=load/results/result_client2_$(date +%Y%m%d_%H%M%S).json \
   load/k6/full_scenario.js
 ```
 
-> **Đồng bộ thời gian:** Khởi động cả 2 lệnh gần như cùng lúc để đạt 1000 VU đồng thời. Có thể dùng `at` hoặc SSH đa phiên.
+Chạy hai lệnh gần như cùng lúc để có 1000 VU đồng thời, ví dụ bằng `at` hoặc hai phiên SSH. `DEV_PASSWORD` là mật khẩu đã dùng khi seed.
 
----
 
-## 6. Bảo mật — Tại sao cổng DB không mở cho client?
+## 6. Lý do không mở cổng DB cho client
 
-| Lý do | Giải thích |
-|-------|-----------|
-| **Nguyên tắc least privilege** | Client (k6) chỉ cần gọi HTTP API, không cần truy cập thẳng DB. Mở cổng 5432 là bề mặt tấn công không cần thiết. |
-| **Ngăn SQL injection trực tiếp** | Nếu script k6 bị thao túng hoặc rò rỉ thông tin, kẻ tấn công không thể kết nối DB dù có IP Tailscale của client. |
-| **Kiểm soát qua API layer** | Mọi truy cập dữ liệu đều đi qua Spring Boot — nơi có rate limiting, JWT auth, idempotency, và audit log. |
-| **Giảm thiểu ảnh hưởng khi máy client bị xâm phạm** | Máy client chỉ có thể gây ra tải HTTP, không thể đọc/ghi DB trực tiếp. |
+Client chỉ cần gọi HTTP API, nên mở cổng 5432 cho client là mở thêm đường tấn công không cần thiết. Mọi truy cập dữ liệu đi qua backend, nơi có xác thực JWT, rate limit và idempotency. Nếu một máy client bị chiếm quyền, máy đó chỉ gửi được request HTTP, không đọc hoặc ghi DB trực tiếp được.
 
 Trong `docker-compose.yml`, dòng sau đảm bảo DB chỉ bind đúng địa chỉ được phép:
 
@@ -274,46 +200,37 @@ ports:
   - "${DB_BIND_ADDR:-127.0.0.1}:${DB_PORT:-5432}:5432"
 ```
 
-Khi `DB_BIND_ADDR=<tailscale-ip-db>`, chỉ các máy trong tailnet **và được Tailscale ACL cho phép** mới kết nối được cổng này.
+Khi `DB_BIND_ADDR=<tailscale-ip-db>`, chỉ máy trong tailnet và được Tailscale ACL cho phép mới kết nối được cổng này.
 
----
 
-## 7. Kiểm tra nhanh (Quick Verification)
+## 7. Kiểm tra nhanh
 
-### Từ máy-client: API được, DB bị từ chối
+### Từ máy client: gọi được API, không vào được DB
 
 ```bash
 BACKEND_IP=<tailscale-ip-backend>
 DB_IP=<tailscale-ip-db>
 
-# Gọi API — kỳ vọng thành công (200)
+# Gọi API, mong đợi 200
 curl -s -o /dev/null -w "%{http_code}" \
   http://${BACKEND_IP}:8080/api/v1/sections
 # Kết quả: 200
 
-# Kết nối thẳng DB — kỳ vọng thất bại
+# Kết nối trực tiếp DB, mong đợi thất bại
 nc -zv -w 3 ${DB_IP} 5432
 # Kết quả: Connection refused hoặc timeout
 ```
 
-### Từ máy-backend: DB phải kết nối được
+### Từ máy-backend: kết nối được DB
 
 ```bash
-# Kiểm tra kết nối từ trong container api
-docker compose exec api \
-  sh -c "nc -zv <tailscale-ip-db> 5432"
-# Kết quả: succeeded!
-
-# Hoặc kiểm tra datasource qua health
+nc -zv <tailscale-ip-db> 5432
 curl http://<tailscale-ip-backend>:8080/api/v1/health
-# {"status":"UP","db":"UP"}
 ```
-
----
 
 ## 8. Tailscale ACL mẫu
 
-Thêm policy sau vào Tailscale Admin Console → **Access Controls** để đảm bảo máy-client không thể kết nối cổng 5432:
+Thêm policy sau vào Tailscale Admin Console, mục Access Controls, để chặn máy client kết nối cổng 5432:
 
 ```json
 {
@@ -371,17 +288,16 @@ tailscale up --advertise-tags=tag:backend
 tailscale up --advertise-tags=tag:client
 ```
 
-> **Sau khi áp dụng ACL**, chạy lại bước [kiểm tra nhanh](#7-kiểm-tra-nhanh-quick-verification) để xác nhận policy hoạt động đúng.
+Sau khi áp dụng ACL, chạy lại [mục 7](#7-kiểm-tra-nhanh) để kiểm tra.
 
----
 
-## 9. Tóm tắt thứ tự triển khai
+## 9. Thứ tự triển khai
 
 ```
 1. Tailscale: 4 máy join tailnet, gán tag
 2. Áp dụng Tailscale ACL
-3. máy-db:      git clone → .env → docker compose up -d postgres
-4. máy-backend: git clone → .env → docker compose build api → docker compose up -d api
+3. máy-db: git clone, tạo .env, docker compose up -d postgres
+4. máy-backend: git clone, đặt biến môi trường, ./mvnw spring-boot:run
 5. Kiểm tra health từ máy-backend
-6. máy-client-1 & 2: git clone → cài k6 → chạy full_scenario.js
+6. máy-client-1 và máy-client-2: git clone, cài k6, chạy full_scenario.js
 ```

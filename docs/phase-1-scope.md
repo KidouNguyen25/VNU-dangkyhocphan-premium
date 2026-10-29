@@ -1,7 +1,5 @@
 # Phạm vi pha 1
 
-> Đây là tài liệu đặc tả để triển khai.
-
 ## Mục tiêu
 
 - Pha 1 là một backend đăng ký học phần chạy được và thử được trực tiếp trên Swagger UI. Không xây frontend riêng.

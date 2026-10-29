@@ -1,7 +1,5 @@
 # Backend
 
-> Tài liệu mô tả phạm vi, hợp đồng tích hợp, cách chạy và kết quả kiểm chứng backend.
-
 Nhánh `feat/k5-backend` sử dụng Java Spring Boot. Backend có `JwtTokenGateway` để phát và xác minh JWT HS256. Chưa triển khai lên máy nhóm hoặc đo tải qua Tailscale.
 
 ## Phạm vi và cấu trúc
