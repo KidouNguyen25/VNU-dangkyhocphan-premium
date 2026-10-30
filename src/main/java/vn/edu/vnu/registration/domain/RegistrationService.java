@@ -7,8 +7,18 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
-import static vn.edu.vnu.registration.domain.Models.*;
-import static vn.edu.vnu.registration.domain.Ports.*;
+import vn.edu.vnu.registration.domain.auth.model.Account;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.Role;
+import vn.edu.vnu.registration.domain.auth.model.Token;
+import vn.edu.vnu.registration.domain.enrollment.model.SectionQuery;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
+import vn.edu.vnu.registration.domain.auth.model.PeriodStatus;
+import vn.edu.vnu.registration.domain.port.PasswordVerifier;
+import vn.edu.vnu.registration.domain.port.TokenGateway;
+
+
+import vn.edu.vnu.registration.domain.Ports.*; //TODO: Refactor this
 
 public class RegistrationService {
     private final Repository repo;

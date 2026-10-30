@@ -12,8 +12,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
+
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.Role;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
 import static org.assertj.core.api.Assertions.*;
-import static vn.edu.vnu.registration.domain.Models.*;
 
 class JwtTokenGatewayTest {
     private static final String SECRET = "test-only-secret-0123456789-abcdefghij";

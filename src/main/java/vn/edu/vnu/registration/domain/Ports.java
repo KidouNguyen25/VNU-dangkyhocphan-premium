@@ -3,7 +3,9 @@ package vn.edu.vnu.registration.domain;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import static vn.edu.vnu.registration.domain.Models.*;
+import vn.edu.vnu.registration.domain.auth.model.Account;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.Token;
 
 public final class Ports {
     private Ports() {}
@@ -13,6 +15,7 @@ public final class Ports {
         Token issue(Identity identity);
         Identity verify(String bearerToken);
     }
+
     public interface PasswordVerifier { boolean matches(String raw, String hash); }
 
     public interface Reader {
@@ -23,9 +26,11 @@ public final class Ports {
         List<Registered> registered(long studentId, String term);
         void ping();
     }
+
     public interface Repository extends Reader {
         <T> T transaction(Function<Transaction, T> work);
     }
+
     public interface Transaction extends Reader {
         boolean claimKey(long studentId, String key, String hash);
         SavedResponse lockKey(long studentId, String key);

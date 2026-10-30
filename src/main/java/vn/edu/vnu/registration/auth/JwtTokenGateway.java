@@ -15,7 +15,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
 import static vn.edu.vnu.registration.domain.Models.*;
-import static vn.edu.vnu.registration.domain.Ports.*;
+import vn.edu.vnu.registration.domain.auth.model.Token;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.port.TokenGateway;
 
 /** JWT HS256, 60 phút, mang account.id (sub) và role. Không refresh token, không lưu phiên. */
 @Component
@@ -35,7 +37,8 @@ public class JwtTokenGateway implements TokenGateway {
         this.clock = clock;
     }
 
-    @Override public Token issue(Identity identity) {
+    @Override
+    public Token issue(Identity identity) {
         try {
             Instant now = clock.instant();
             var claims = new JWTClaimsSet.Builder()

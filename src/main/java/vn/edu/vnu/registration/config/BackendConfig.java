@@ -19,27 +19,44 @@ import vn.edu.vnu.registration.domain.RegistrationService;
 import javax.sql.DataSource;
 import java.time.Clock;
 import java.util.UUID;
-import static vn.edu.vnu.registration.domain.Models.*;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.Token;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
 import static vn.edu.vnu.registration.domain.Ports.*;
+import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
 
 @Configuration
 public class BackendConfig {
-    @Bean @ConditionalOnMissingBean public Clock clock() { return Clock.systemUTC(); }
+    @Bean
+    @ConditionalOnMissingBean
+    public Clock clock() { return Clock.systemUTC(); }
+
     @Bean public PostgresRepository repository(JdbcTemplate jdbc, DataSource ds, ObjectMapper json) {
         return new PostgresRepository(jdbc, new TransactionTemplate(new DataSourceTransactionManager(ds)), json);
     }
-    @Bean public RegistrationService registrationService(PostgresRepository repo, ObjectProvider<TokenGateway> tokens, Clock clock) {
+
+    @Bean
+    public RegistrationService registrationService(PostgresRepository repo, ObjectProvider<TokenGateway> tokens, Clock clock) {
         var encoder = new BCryptPasswordEncoder(10);
         return new RegistrationService(repo, tokens.getIfAvailable(BackendConfig::missingTokenGateway), encoder::matches, encoder.encode(UUID.randomUUID().toString()), clock);
     }
+
     public static TokenGateway missingTokenGateway() {
         return new TokenGateway() {
-            private BusinessException unavailable() { return error(503, "AUTH_NOT_CONFIGURED", "Chưa cấu hình JWT_SECRET."); }
-            @Override public Token issue(Identity identity) { throw unavailable(); }
-            @Override public Identity verify(String token) { throw unavailable(); }
+            private BusinessException unavailable() {
+                return error(503, "AUTH_NOT_CONFIGURED", "Chưa cấu hình JWT_SECRET.");
+            }
+
+            @Override
+            public Token issue(Identity identity) { throw unavailable(); }
+
+            @Override
+            public Identity verify(String token) { throw unavailable(); }
         };
     }
-    @Bean public OpenAPI openAPI() {
+
+    @Bean
+    public OpenAPI openAPI() {
         return new OpenAPI().info(new Info().title("VNU Đăng ký học phần").version("1.0")
             .description("JSON camelCase; thời gian ISO 8601 UTC. Lỗi có dạng {code, message, details}. Bearer JWT HS256, hết hạn sau 60 phút. Chỗ trống chỉ có giá trị tham khảo."))
             .components(new Components().addSecuritySchemes("bearerAuth", new SecurityScheme()
