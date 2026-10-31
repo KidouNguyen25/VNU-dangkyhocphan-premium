@@ -17,7 +17,8 @@ class ApiSecurityFilterTest {
     private final ObjectMapper json = new ObjectMapper();
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-25T00:00:00Z"), ZoneOffset.UTC);
 
-    @Test void rateLimitedHttpResponseHasRetryAfterAndErrorEnvelope() throws Exception {
+    @Test
+    void rateLimitedHttpResponseHasRetryAfterAndErrorEnvelope() throws Exception {
         var filter = new ApiSecurityFilter(BackendConfig.missingTokenGateway(), new MemoryRateLimiter(clock, 1, 1, 1), json, "127.0.0.1", mock(PostgresRepository.class));
         var first = new MockHttpServletResponse();
         filter.doFilter(request(null), first, (req, res) -> ((jakarta.servlet.http.HttpServletResponse) res).setStatus(204));
@@ -30,7 +31,8 @@ class ApiSecurityFilterTest {
         assertThat(second.getHeader("X-Request-ID")).isNotBlank();
     }
 
-    @Test void unconfiguredGatewayFailsClosedWithNoSecurityIdentity() throws Exception {
+    @Test
+    void unconfiguredGatewayFailsClosedWithNoSecurityIdentity() throws Exception {
         SecurityContextHolder.clearContext();
         try {
             var filter = new ApiSecurityFilter(BackendConfig.missingTokenGateway(), new MemoryRateLimiter(clock, 10, 10, 10), json, "127.0.0.1", mock(PostgresRepository.class));

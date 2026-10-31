@@ -15,14 +15,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import vn.edu.vnu.registration.api.ApiSecurityFilter;
 import vn.edu.vnu.registration.api.MemoryRateLimiter;
 import vn.edu.vnu.registration.data.PostgresRepository;
-import static vn.edu.vnu.registration.domain.Models.*;
-import static vn.edu.vnu.registration.domain.Ports.*;
+import vn.edu.vnu.registration.domain.exception.ErrorBody;
+import vn.edu.vnu.registration.domain.port.TokenGateway;
+
 
 @Configuration
 public class SecurityConfig {
     @Bean public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<TokenGateway> tokens, MemoryRateLimiter limiter,
-                                                       ObjectMapper json, PostgresRepository repository,
-                                                       @Value("${app.health-allowed-ips}") String healthIps) throws Exception {
+                                                         ObjectMapper json, PostgresRepository repository,
+                                                         @Value("${app.health-allowed-ips}") String healthIps) throws Exception {
         return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .requestCache(c -> c.disable()).formLogin(c -> c.disable()).httpBasic(c -> c.disable()).logout(c -> c.disable())

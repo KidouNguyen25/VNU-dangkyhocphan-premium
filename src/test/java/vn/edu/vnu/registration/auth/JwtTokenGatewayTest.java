@@ -32,7 +32,8 @@ class JwtTokenGatewayTest {
         });
     }
 
-    @Test void issuesTokenWithIdentityAndOneHourLifetime() {
+    @Test
+    void issuesTokenWithIdentityAndOneHourLifetime() {
         var gw = gateway(SECRET, NOW);
         var token = gw.issue(new Identity(42, Role.STUDENT));
         assertThat(token.tokenType()).isEqualTo("Bearer");
@@ -40,24 +41,28 @@ class JwtTokenGatewayTest {
         assertThat(gw.verify(token.accessToken())).isEqualTo(new Identity(42, Role.STUDENT));
     }
 
-    @Test void keepsAdminRole() {
+    @Test
+    void keepsAdminRole() {
         var gw = gateway(SECRET, NOW);
         assertThat(gw.verify(gw.issue(new Identity(99, Role.ADMIN)).accessToken()).role()).isEqualTo(Role.ADMIN);
     }
 
-    @Test void rejectsTokenAtAndAfterExpiry() {
+    @Test
+    void rejectsTokenAtAndAfterExpiry() {
         var token = gateway(SECRET, NOW).issue(new Identity(1, Role.STUDENT)).accessToken();
         assertThat(gateway(SECRET, NOW.plusSeconds(3599)).verify(token).accountId()).isEqualTo(1);
         assertUnauthorized(() -> gateway(SECRET, NOW.plusSeconds(3600)).verify(token));
         assertUnauthorized(() -> gateway(SECRET, NOW.plusSeconds(7200)).verify(token));
     }
 
-    @Test void rejectsTokenSignedWithAnotherKey() {
+    @Test
+    void rejectsTokenSignedWithAnotherKey() {
         var token = gateway("another-secret-0123456789-abcdefghij", NOW).issue(new Identity(1, Role.STUDENT)).accessToken();
         assertUnauthorized(() -> gateway(SECRET, NOW).verify(token));
     }
 
-    @Test void rejectsTamperedPayload() {
+    @Test
+    void rejectsTamperedPayload() {
         var gw = gateway(SECRET, NOW);
         var parts = gw.issue(new Identity(1, Role.STUDENT)).accessToken().split("\\.");
         var forged = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
@@ -65,7 +70,8 @@ class JwtTokenGatewayTest {
         assertUnauthorized(() -> gw.verify(parts[0] + "." + forged + "." + parts[2]));
     }
 
-    @Test void rejectsUnsignedAndMalformedTokens() {
+    @Test
+    void rejectsUnsignedAndMalformedTokens() {
         var gw = gateway(SECRET, NOW);
         var none = java.util.Base64.getUrlEncoder().withoutPadding();
         var unsigned = none.encodeToString("{\"alg\":\"none\"}".getBytes(StandardCharsets.UTF_8)) + "."
@@ -75,7 +81,8 @@ class JwtTokenGatewayTest {
         assertUnauthorized(() -> gw.verify("a.b.c"));
     }
 
-    @Test void rejectsOtherIssuerAndUnknownRole() {
+    @Test
+    void rejectsOtherIssuerAndUnknownRole() {
         var gw = gateway(SECRET, NOW);
         assertUnauthorized(() -> gw.verify(signed("other-issuer", "1", "STUDENT", NOW.plusSeconds(60))));
         assertUnauthorized(() -> gw.verify(signed("vnu-course-registration", "1", "TEACHER", NOW.plusSeconds(60))));
@@ -84,7 +91,8 @@ class JwtTokenGatewayTest {
         assertUnauthorized(() -> gw.verify(signed("vnu-course-registration", "1", "STUDENT", null)));
     }
 
-    @Test void rejectsWeakOrSampleSecret() {
+    @Test
+    void rejectsWeakOrSampleSecret() {
         assertThatThrownBy(() -> gateway("short", NOW)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> gateway("change-me-at-least-32-random-bytes", NOW)).isInstanceOf(IllegalArgumentException.class);
     }

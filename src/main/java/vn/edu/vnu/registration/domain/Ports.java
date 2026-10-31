@@ -1,16 +1,19 @@
 package vn.edu.vnu.registration.domain;
 
+import vn.edu.vnu.registration.domain.auth.model.Account;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.RegistrationPeriod;
+import vn.edu.vnu.registration.domain.auth.model.Token;
+import vn.edu.vnu.registration.domain.enrollment.model.*;
+import vn.edu.vnu.registration.domain.idempotency.model.SavedResponse;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
-import vn.edu.vnu.registration.domain.auth.model.Account;
-import vn.edu.vnu.registration.domain.auth.model.Identity;
-import vn.edu.vnu.registration.domain.auth.model.Token;
 
 public final class Ports {
     private Ports() {}
 
-    /** Đồng đội triển khai ký/xác minh JWT, gồm chữ ký, exp, account.id và role. */
     public interface TokenGateway {
         Token issue(Identity identity);
         Identity verify(String bearerToken);
@@ -21,7 +24,7 @@ public final class Ports {
     public interface Reader {
         Optional<Account> accountByCode(String code);
         Optional<Account> accountById(long id);
-        Optional<Period> currentPeriod();
+        Optional<RegistrationPeriod> currentPeriod();
         List<Section> sections(SectionQuery query);
         List<Registered> registered(long studentId, String term);
         void ping();
@@ -44,6 +47,6 @@ public final class Ports {
         Optional<Cancellation> enrollment(long studentId, long enrollmentId);
         void cancel(long studentId, long enrollmentId, long sectionId);
         void upsertSection(long id, SectionInput input);
-        void upsertPeriod(Period input);
+        void upsertPeriod(RegistrationPeriod input);
     }
 }

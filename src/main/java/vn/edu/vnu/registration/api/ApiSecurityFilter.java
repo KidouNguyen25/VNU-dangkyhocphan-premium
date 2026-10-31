@@ -13,6 +13,10 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import vn.edu.vnu.registration.data.PostgresRepository;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
+import vn.edu.vnu.registration.domain.port.TokenGateway;
+import vn.edu.vnu.registration.domain.exception.ErrorBody;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -21,8 +25,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import static vn.edu.vnu.registration.domain.Models.*;
-import static vn.edu.vnu.registration.domain.Ports.*;
+
+import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
 
 public class ApiSecurityFilter extends OncePerRequestFilter {
     private static final Logger LOG = LoggerFactory.getLogger(ApiSecurityFilter.class);

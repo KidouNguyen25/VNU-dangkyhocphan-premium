@@ -1,14 +1,16 @@
 package vn.edu.vnu.registration.domain.enrollment;
 
-import vn.edu.vnu.registration.domain.Models;
+import vn.edu.vnu.registration.domain.Outcome;
 import vn.edu.vnu.registration.domain.auth.model.PeriodStatus;
 import vn.edu.vnu.registration.domain.auth.model.RegistrationPeriod;
 import vn.edu.vnu.registration.domain.enrollment.model.Enrollment;
-import vn.edu.vnu.registration.domain.enrollment.model.Outcome;
 import vn.edu.vnu.registration.domain.enrollment.model.Section;
-import vn.edu.vnu.registration.domain.exception.BusinessException;
+import vn.edu.vnu.registration.domain.idempotency.IdempotencyService;
+import vn.edu.vnu.registration.domain.port.AccountRepository;
 import vn.edu.vnu.registration.domain.port.EnrollmentRepository;
+import vn.edu.vnu.registration.domain.port.RegistrationPeriodRepository;
 import vn.edu.vnu.registration.domain.port.SectionRepository;
+import vn.edu.vnu.registration.domain.port.TransactionRunner;
 
 import java.time.Clock;
 import java.util.*;
@@ -19,23 +21,40 @@ import static vn.edu.vnu.registration.domain.enrollment.EnrollmentUtil.checkEnro
 import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
 
 public class EnrollmentService {
-    private final EnrollmentRepository enrollmentRepositiory;
+    private final EnrollmentRepository enrollmentRepository;
     private final SectionRepository sectionRepository;
+    private final RegistrationPeriodRepository periodRepository;
+    private final AccountRepository accountRepository;
+    private final TransactionRunner transactionRunner;
+    private final IdempotencyService idempotencyService;
     private final Clock clock;
 
-    public EnrollmentService(EnrollmentRepository enrollmentRepositiory, SectionRepository sectionRepository, Clock clock) {
-        this.enrollmentRepositiory = enrollmentRepositiory;
+    public EnrollmentService(
+            EnrollmentRepository enrollmentRepository,
+            SectionRepository sectionRepository,
+            RegistrationPeriodRepository periodRepository,
+            AccountRepository accountRepository,
+            TransactionRunner transactionRunner,
+            IdempotencyService idempotencyService,
+            Clock clock
+    ) {
+        this.enrollmentRepository = enrollmentRepository;
         this.sectionRepository = sectionRepository;
+        this.periodRepository = periodRepository;
+        this.accountRepository = accountRepository;
+        this.transactionRunner = transactionRunner;
+        this.idempotencyService = idempotencyService;
         this.clock = clock;
     }
 
     public Map<String, Object> enrollments(long studentId, String term) {
-        var rows = enrollmentRepositiory.registered(studentId, term);
+        var rows = enrollmentRepository.registered(studentId, term);
         Map<String, Integer> credits = new TreeMap<>();
         var items = rows.stream().map(r -> {
             credits.merge(r.section().term(), r.section().credits(), Integer::sum);
             var item = sectionBody(r.section());
-            item.put("enrollmentId", r.enrollmentId()); item.put("createdAt", r.createdAt());
+            item.put("enrollmentId", r.enrollmentId());
+            item.put("createdAt", r.createdAt());
             return item;
         }).toList();
         return Map.of("items", items, "creditsByTerm", credits);
@@ -51,89 +70,51 @@ public class EnrollmentService {
         var sorted = ids.stream().sorted().toList();
         var hash = requestHash(sorted);
 
-        /*
-        TODO: idempotency bs, i will do it later
-         */
-        return repo.transaction(tx -> {
-            // Khóa trước INSERT để tránh hai FK KEY SHARE cùng nâng lên FOR UPDATE gây deadlock.
-            tx.lockAccount(studentId);
-            if (!tx.claimKey(studentId, key, hash)) {
-                var saved = tx.lockKey(studentId, key);
-                if (!Objects.equals(saved.requestHash(), hash)) throw error(409, "IDEMPOTENCY_KEY_REUSED", "Khóa đã được dùng với nội dung khác.");
-                if (!"COMPLETED".equals(saved.state()) || saved.responseStatus() == null) throw new IllegalStateException("Incomplete idempotency record");
-                return new Outcome(saved.responseStatus(), saved.responseBody(), true);
+        return idempotencyService.execute(studentId, key, hash, () -> accountRepository.lockAccount(studentId), () -> {
+            var period = requireOpen(periodRepository.currentPeriod());
+            var targets = sectionRepository.lockSections(sorted);
+            requireOpen(periodRepository.currentPeriod());
+            if (targets.size() != sorted.size()) {
+                throw error(404, "SECTION_NOT_FOUND", "Có lớp học phần không tồn tại.");
             }
-            Object savepoint = tx.savepoint();
-            Outcome result;
-            try {
-                var period = requireOpen(tx.currentPeriod());
-                var targets = tx.lockSections(sorted);
-                requireOpen(Optional.of(period));
-                if (targets.size() != sorted.size()) throw error(404, "SECTION_NOT_FOUND", "Có lớp học phần không tồn tại.");
-                checkEnrollment(period, targets, tx.registered(studentId, period.term()));
-                var items = new ArrayList<Enrollment>();
-                for (var target : targets) items.add(tx.enroll(studentId, target.id()));
-                result = new Outcome(201, Map.of("items", items));
-            } catch (BusinessException e) {
-                if (e.status() >= 500) throw e;
-                tx.rollbackTo(savepoint);
-                result = new Outcome(e.status(), e.body());
+            checkEnrollment(period, targets, enrollmentRepository.registered(studentId, period.term()));
+            var items = new ArrayList<Enrollment>();
+            for (var target : targets) {
+                items.add(enrollmentRepository.enroll(studentId, target.id()));
             }
-            tx.completeKey(studentId, key, result);
-            // Cùng dạng JSONB cho lần đầu và replay; chỉ trả sau khi transaction đã commit.
-            return new Outcome(result.status(), tx.lockKey(studentId, key).responseBody());
+            return new Outcome(201, Map.of("items", items));
         });
     }
 
     public void cancel(long studentId, long enrollmentId) {
-        repo.transaction(tx -> {
-            tx.lockAccount(studentId);
-            var period = requireOpen(tx.currentPeriod());
-            var enrollment = tx.enrollment(studentId, enrollmentId).orElseThrow(() -> error(404, "ENROLLMENT_NOT_FOUND", "Không tìm thấy lượt đăng ký."));
-            if (!period.term().equals(enrollment.term())) throw error(403, "REGISTRATION_NOT_OPEN", "Đợt của lớp đã đóng.");
-            tx.lockSections(List.of(enrollment.sectionId()));
-            requireOpen(Optional.of(period));
-            tx.cancel(studentId, enrollmentId, enrollment.sectionId());
+        transactionRunner.runInTransaction(ctx -> {
+            accountRepository.lockAccount(studentId);
+            var period = requireOpen(periodRepository.currentPeriod());
+            var enrollment = enrollmentRepository.enrollment(studentId, enrollmentId)
+                    .orElseThrow(() -> error(404, "ENROLLMENT_NOT_FOUND", "Không tìm thấy lượt đăng ký."));
+            if (!period.term().equals(enrollment.term())) {
+                throw error(403, "REGISTRATION_NOT_OPEN", "Đợt của lớp đã đóng.");
+            }
+            sectionRepository.lockSections(List.of(enrollment.sectionId()));
+            requireOpen(periodRepository.currentPeriod());
+            enrollmentRepository.cancel(studentId, enrollmentId, enrollment.sectionId());
             return null;
         });
     }
 
-    public Outcome saveSection(long id, SectionInput input) {
-        return repo.transaction(tx -> {
-            tx.lockSectionAdmin(id);
-            var current = tx.lockSections(List.of(id)).stream().findFirst();
-            if (current.filter(s -> s.enrolledCount() > input.capacity()).isPresent()) {
-                throw error(422, "CAPACITY_BELOW_ENROLLED", "Sĩ số mới thấp hơn số đã đăng ký.");
-            }
-            if (current.filter(s -> s.enrolledCount() > 0 && (!s.courseCode().equals(input.courseCode()) || !s.term().equals(input.term()) || s.session() != input.session())).isPresent()) {
-                throw error(422, "SECTION_HAS_ENROLLMENTS", "Không đổi học phần, kỳ hoặc ca của lớp đã có sinh viên.");
-            }
-            tx.upsertSection(id, input);
-            return new Outcome(current.isPresent() ? 200 : 201, sectionBody(tx.lockSections(List.of(id)).get(0)));
-        });
-    }
-
-    public Outcome saveSection(long id, SectionInput input) {
-        return repo.transaction(tx -> {
-            tx.lockSectionAdmin(id);
-            var current = tx.lockSections(List.of(id)).stream().findFirst();
-            if (current.filter(s -> s.enrolledCount() > input.capacity()).isPresent()) {
-                throw error(422, "CAPACITY_BELOW_ENROLLED", "Sĩ số mới thấp hơn số đã đăng ký.");
-            }
-            if (current.filter(s -> s.enrolledCount() > 0 && (!s.courseCode().equals(input.courseCode()) || !s.term().equals(input.term()) || s.session() != input.session())).isPresent()) {
-                throw error(422, "SECTION_HAS_ENROLLMENTS", "Không đổi học phần, kỳ hoặc ca của lớp đã có sinh viên.");
-            }
-            tx.upsertSection(id, input);
-            return new Outcome(current.isPresent() ? 200 : 201, sectionBody(tx.lockSections(List.of(id)).get(0)));
-        });
-    }
-
-    private Map<String, Object> sectionBody(Section s) {
+    public static Map<String, Object> sectionBody(Section s) {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("id", s.id()); result.put("courseCode", s.courseCode()); result.put("term", s.term());
-        result.put("lecturer", s.lecturer()); result.put("capacity", s.capacity()); result.put("enrolledCount", s.enrolledCount());
-        result.put("session", s.session()); result.put("courseName", s.courseName()); result.put("credits", s.credits());
-        result.put("prerequisite", s.prerequisite()); result.put("availableSeats", s.capacity() - s.enrolledCount());
+        result.put("id", s.id());
+        result.put("courseCode", s.courseCode());
+        result.put("term", s.term());
+        result.put("lecturer", s.lecturer());
+        result.put("capacity", s.capacity());
+        result.put("enrolledCount", s.enrolledCount());
+        result.put("session", s.session());
+        result.put("courseName", s.courseName());
+        result.put("credits", s.credits());
+        result.put("prerequisite", s.prerequisite());
+        result.put("availableSeats", s.capacity() - s.enrolledCount());
         return result;
     }
 

@@ -10,9 +10,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Optional;
 
+import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
+
 public class AccountRepositoryImpl extends GenericRepositoryImpl implements AccountRepository {
-    protected AccountRepositoryImpl(JdbcTemplate jdbc, QueryTimer timer) {
-        super(jdbc);
+    public AccountRepositoryImpl(JdbcTemplate jdbc, QueryTimer timer) {
+        super(jdbc, timer);
     }
 
     @Override
@@ -31,12 +33,14 @@ public class AccountRepositoryImpl extends GenericRepositoryImpl implements Acco
                 rs.getString("code"),
                 rs.getString("full_name"),
                 rs.getString("password_hash"),
-                Role.valueOf(rs.getString("role")
-                )
+                Role.valueOf(rs.getString("role"))
         );
     }
+
     @Override
     public void lockAccount(long id) {
-
+        if (query("SELECT id FROM account WHERE id = ? FOR UPDATE", (rs, row) -> rs.getLong(1), id).isEmpty()) {
+            throw error(401, "UNAUTHORIZED", "Tài khoản không còn tồn tại.");
+        }
     }
 }

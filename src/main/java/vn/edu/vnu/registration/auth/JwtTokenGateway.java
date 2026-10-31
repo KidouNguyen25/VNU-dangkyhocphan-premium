@@ -9,15 +9,18 @@ import com.nimbusds.jwt.SignedJWT;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.Role;
+import vn.edu.vnu.registration.domain.auth.model.Token;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
+import vn.edu.vnu.registration.domain.port.TokenGateway;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Date;
-import static vn.edu.vnu.registration.domain.Models.*;
-import vn.edu.vnu.registration.domain.auth.model.Token;
-import vn.edu.vnu.registration.domain.auth.model.Identity;
-import vn.edu.vnu.registration.domain.port.TokenGateway;
+
+import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
 
 /** JWT HS256, 60 phút, mang account.id (sub) và role. Không refresh token, không lưu phiên. */
 @Component
@@ -37,13 +40,12 @@ public class JwtTokenGateway implements TokenGateway {
         this.clock = clock;
     }
 
-    @Override
-    public Token issue(Identity identity) {
+    @Override public Token issue(Identity identity) {
+        Instant now = clock.instant();
         try {
-            Instant now = clock.instant();
             var claims = new JWTClaimsSet.Builder()
                 .issuer(ISSUER)
-                .subject(Long.toString(identity.accountId()))
+                .subject(String.valueOf(identity.accountId()))
                 .claim("role", identity.role().name())
                 .issueTime(Date.from(now))
                 .expirationTime(Date.from(now.plusSeconds(TTL_SECONDS)))

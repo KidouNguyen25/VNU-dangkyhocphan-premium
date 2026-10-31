@@ -12,7 +12,9 @@ import java.util.stream.Collectors;
 import static vn.edu.vnu.registration.domain.exception.BusinessException.sectionError;
 
 public class EnrollmentUtil {
-    static void checkEnrollment(RegistrationPeriod period, List<Section> targets, List<Registered> existing) {
+    private EnrollmentUtil() {}
+
+    public static void checkEnrollment(RegistrationPeriod period, List<Section> targets, List<Registered> existing) {
         var sections = existing.stream().map(r -> r.section().id()).collect(Collectors.toSet());
         var courses = existing.stream().map(r -> r.section().courseCode()).collect(Collectors.toSet());
         int sessions = existing.stream().mapToInt(r -> r.section().session()).reduce(0, (a, b) -> a | b);

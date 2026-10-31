@@ -21,9 +21,19 @@ public class MemoryRateLimiter {
         if (ipLimit < 1 || accountLimit < 1 || loginLimit < 1) throw new IllegalArgumentException("Rate limits must be positive");
         this.clock = clock; this.ipLimit = ipLimit; this.accountLimit = accountLimit; this.loginLimit = loginLimit;
     }
-    public void ip(String ip) { take("ip:" + ip, ipLimit); }
-    public void account(long id) { take("account:" + id, accountLimit); }
-    public void login(String code) { take("login:" + code, loginLimit); }
+
+    public void ip(String ip) {
+        take("ip:" + ip, ipLimit);
+    }
+
+    public void account(long id) {
+        take("account:" + id, accountLimit);
+    }
+
+    public void login(String code) {
+        take("login:" + code, loginLimit);
+    }
+
 
     // MVP chạy một API instance. Nếu chạy nhiều instance, cần giới hạn dùng chung ở pha sau.
     private synchronized void take(String key, int limit) {
@@ -38,6 +48,7 @@ public class MemoryRateLimiter {
         if (current.count() >= limit) throw limited((int) Math.max(1, (current.expires() - now + 999) / 1000));
         windows.put(key, new Window(current.expires(), current.count() + 1));
     }
+
     private BusinessException limited(int seconds) {
         return new BusinessException(429, "RATE_LIMITED", "Vượt giới hạn yêu cầu, vui lòng thử lại sau.", Map.of("retryAfter", seconds));
     }

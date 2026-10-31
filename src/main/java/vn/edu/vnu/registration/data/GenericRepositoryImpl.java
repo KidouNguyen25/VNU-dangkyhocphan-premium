@@ -14,10 +14,11 @@ import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
 
 public abstract class GenericRepositoryImpl {
     protected final JdbcTemplate jdbc;
-    protected final QueryTimer timer = new QueryTimer();
+    protected final QueryTimer timer;
 
-    protected GenericRepositoryImpl(JdbcTemplate jdbc) {
+    protected GenericRepositoryImpl(JdbcTemplate jdbc, QueryTimer timer) {
         this.jdbc = jdbc;
+        this.timer = timer;
     }
 
     protected <T> List<T> query(String sql, RowMapper<T> mapper, Object... args) {

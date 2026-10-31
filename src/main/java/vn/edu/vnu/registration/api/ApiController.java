@@ -17,14 +17,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.vnu.registration.domain.RegistrationService;
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.RegistrationPeriod;
+import vn.edu.vnu.registration.domain.auth.model.Token;
+import vn.edu.vnu.registration.domain.enrollment.model.SectionQuery;
+import vn.edu.vnu.registration.domain.exception.ErrorBody;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.util.*;
+
 import static vn.edu.vnu.registration.api.ApiDtos.*;
-import static vn.edu.vnu.registration.domain.Models.*;
+import static vn.edu.vnu.registration.domain.exception.BusinessException.error;
 
 @RestController
 @RequestMapping(value = "/api/v1", produces = "application/json")
@@ -49,7 +55,11 @@ public class ApiController {
     @PostMapping("/auth/login")
     @Operation(summary = "Đăng nhập và nhận JWT")
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Token.class)))
-    public Token login(@Valid @RequestBody LoginRequest request) {
+    public Token login(
+            @Valid
+            @RequestBody
+            LoginRequest request
+    ) {
         limiter.login(request.code());
         if (request.password().getBytes(StandardCharsets.UTF_8).length > 72) throw error(400, "VALIDATION_ERROR", "Mật khẩu không được dài hơn 72 byte UTF-8.");
         return service.login(request.code(), request.password());
@@ -131,9 +141,9 @@ public class ApiController {
 
     @PutMapping("/admin/registration")
     @Operation(summary = "ADMIN: upsert đợt theo term; tối đa một OPEN", security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = Period.class)))
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = RegistrationPeriod.class)))
     @ApiResponse(responseCode = "409", description = "OPEN_PERIOD_EXISTS", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
-    public Period savePeriod(@Valid @RequestBody PeriodRequest request) { return service.savePeriod(request.toDomain()); }
+    public RegistrationPeriod savePeriod(@Valid @RequestBody PeriodRequest request) { return service.savePeriod(request.toDomain()); }
 
     @GetMapping("/health")
     @Operation(summary = "SELECT 1, chỉ IP được phép; không cần JWT")

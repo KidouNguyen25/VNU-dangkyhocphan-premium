@@ -9,7 +9,13 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import static org.assertj.core.api.Assertions.*;
-import static vn.edu.vnu.registration.domain.Models.*;
+
+import vn.edu.vnu.registration.domain.auth.model.Identity;
+import vn.edu.vnu.registration.domain.auth.model.PeriodStatus;
+import vn.edu.vnu.registration.domain.auth.model.RegistrationPeriod;
+import vn.edu.vnu.registration.domain.auth.model.Role;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
+import vn.edu.vnu.registration.domain.enrollment.model.*;
 
 class CoreRulesTest {
     @Test void openIntervalIncludesStartButExcludesEnd() {
@@ -22,8 +28,19 @@ class CoreRulesTest {
 
     @Test void sessionSupportsMultipleDaysAndDoesNotCheckPrerequisites() {
         var now = Instant.parse("2026-10-25T00:00:00Z");
-        var period = new Period("2026-1", now, now, now.plusSeconds(60), PeriodStatus.OPEN, 9);
-        var mondayAndWednesday = new Section(1, "C1", "2026-1", "GV", 10, 0, 1025, "A", 3, "Chưa xác minh tiên quyết");
+        var period = new RegistrationPeriod("2026-1", now, now, now.plusSeconds(60), PeriodStatus.OPEN, 9);
+        var mondayAndWednesday = new Section(
+                1,
+                "C1",
+                "2026-1",
+                "GV",
+                10,
+                0,
+                1025,
+                "A",
+                3,
+                "Chưa xác minh tiên quyết"
+        );
         var wednesday = new Section(2, "C2", "2026-1", "GV", 10, 0, 1024, "B", 3, "");
         assertThatCode(() -> RegistrationService.checkEnrollment(period, List.of(mondayAndWednesday), List.of())).doesNotThrowAnyException();
         assertThatThrownBy(() -> RegistrationService.checkEnrollment(period, List.of(mondayAndWednesday, wednesday), List.of()))
