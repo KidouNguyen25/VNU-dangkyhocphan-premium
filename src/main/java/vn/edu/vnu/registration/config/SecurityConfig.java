@@ -21,7 +21,8 @@ import vn.edu.vnu.registration.domain.port.TokenGateway;
 
 @Configuration
 public class SecurityConfig {
-    @Bean public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<TokenGateway> tokens, MemoryRateLimiter limiter,
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<TokenGateway> tokens, MemoryRateLimiter limiter,
                                                          ObjectMapper json, PostgresRepository repository,
                                                          @Value("${app.health-allowed-ips}") String healthIps) throws Exception {
         return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())

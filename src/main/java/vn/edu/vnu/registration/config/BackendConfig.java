@@ -45,8 +45,8 @@ public class BackendConfig {
 
     @Bean
     @Primary
-    public PostgresRepository repository(JdbcTemplate jdbc, DataSource ds, ObjectMapper json) {
-        return new PostgresRepository(jdbc, new TransactionTemplate(new DataSourceTransactionManager(ds)), json);
+    public PostgresRepository repository(JdbcTemplate jdbc, DataSource ds, ObjectMapper json, QueryTimer timer) {
+        return new PostgresRepository(jdbc, new TransactionTemplate(new DataSourceTransactionManager(ds)), json, timer);
     }
 
     @Bean

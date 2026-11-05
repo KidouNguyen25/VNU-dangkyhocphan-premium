@@ -8,7 +8,10 @@ import vn.edu.vnu.registration.domain.auth.model.Identity;
 import vn.edu.vnu.registration.domain.auth.model.RegistrationPeriod;
 import vn.edu.vnu.registration.domain.auth.model.Token;
 import vn.edu.vnu.registration.domain.enrollment.EnrollmentService;
+import vn.edu.vnu.registration.domain.enrollment.EnrollmentUtil;
 import vn.edu.vnu.registration.domain.enrollment.SectionService;
+import vn.edu.vnu.registration.domain.enrollment.model.Registered;
+import vn.edu.vnu.registration.domain.enrollment.model.Section;
 import vn.edu.vnu.registration.domain.enrollment.model.SectionInput;
 import vn.edu.vnu.registration.domain.enrollment.model.SectionQuery;
 import vn.edu.vnu.registration.domain.idempotency.IdempotencyService;
@@ -16,6 +19,7 @@ import vn.edu.vnu.registration.domain.port.PasswordVerifier;
 import vn.edu.vnu.registration.domain.port.TokenGateway;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -103,11 +107,11 @@ public class RegistrationService {
         return Map.of("status", "ok", "serverTime", clock.instant());
     }
 
-    public static boolean within(java.time.Instant now, java.time.Instant from, java.time.Instant until) {
+    public static boolean within(Instant now, Instant from, Instant until) {
         return GeneralUtil.within(now, from, until);
     }
 
-    public static void checkEnrollment(RegistrationPeriod period, List<vn.edu.vnu.registration.domain.enrollment.model.Section> targets, List<vn.edu.vnu.registration.domain.enrollment.model.Registered> existing) {
-        vn.edu.vnu.registration.domain.enrollment.EnrollmentUtil.checkEnrollment(period, targets, existing);
+    public static void checkEnrollment(RegistrationPeriod period, List<Section> targets, List<Registered> existing) {
+        EnrollmentUtil.checkEnrollment(period, targets, existing);
     }
 }

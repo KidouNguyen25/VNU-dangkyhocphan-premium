@@ -45,7 +45,7 @@ public class EnrollmentRepositoryImpl extends GenericRepositoryImpl implements E
     public Optional<Cancellation> enrollment(long studentId, long enrollmentId) {
         return first(query("""
                 SELECT s.id, s.term FROM enrollment e JOIN section s ON s.id = e.section_id
-                WHERE e.id = ? AND e.student_id = ? AND e.status = 'ENROLLED'
+                WHERE e.id = ? AND e.student_id = ? AND e.status = 'ENROLLED' FOR UPDATE OF e
                 """, (rs, row) -> new Cancellation(rs.getLong("id"), rs.getString("term")), enrollmentId, studentId));
     }
 

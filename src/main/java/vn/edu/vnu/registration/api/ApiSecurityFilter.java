@@ -40,13 +40,15 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
         this.tokens = tokens; this.limiter = limiter; this.json = json; this.repository = repository;
         this.healthIps = Arrays.stream(healthIps.split(",")).map(String::trim).filter(s -> !s.isBlank()).map(ApiSecurityFilter::normalizedIp).collect(Collectors.toSet());
     }
+
     private static String normalizedIp(String ip) {
         if (!ip.matches("[0-9a-fA-F:.]+")) throw new IllegalArgumentException("HEALTH_ALLOWED_IPS must contain literal IP addresses");
         try { return InetAddress.getByName(ip).getHostAddress(); }
         catch (Exception e) { throw new IllegalArgumentException("Invalid IP address", e); }
     }
 
-    @Override protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws ServletException, IOException {
         long start = System.nanoTime();
         String requestId = UUID.randomUUID().toString();
         res.setHeader("X-Request-ID", requestId);
