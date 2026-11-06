@@ -34,7 +34,13 @@ Chi tiết nghiệp vụ, ràng buộc và endpoint: [docs/phase-1-scope.md](doc
 | Đóng gói | Docker, Docker Compose |
 | Mạng | Tailscale; không mở Internet công cộng |
 
-Phân tầng: API, nghiệp vụ, truy cập dữ liệu. Tầng nghiệp vụ không phụ thuộc Spring, HTTP hoặc JDBC. PostgreSQL là nguồn dữ liệu có thẩm quyền; hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker.
+Phân tầng: API, nghiệp vụ, truy cập dữ liệu. Tầng nghiệp vụ (`domain`) không phụ thuộc Spring, HTTP hoặc JDBC. Mã nguồn trong `src/main/java/vn/edu/vnu/registration/`:
+
+- `api/`: controller, xử lý lỗi, filter bảo mật, giới hạn tốc độ.
+- `domain/`: nghiệp vụ chia theo nhóm chức năng `auth/`, `enrollment/`, `idempotency/`, `exception/`; cổng tích hợp ở `port/`. `RegistrationService` điều phối các service con.
+- `data/`: cài đặt cổng bằng Spring JDBC (`AccountRepositoryImpl`, `SectionRepositoryImpl`, `EnrollmentRepositoryImpl`, `IdempotencyRepositoryImpl`, `RegistrationPeriodRepositoryImpl`, `TransactionRunnerImpl`).
+- `config/`: bean Spring, SecurityFilterChain, OpenAPI.
+PostgreSQL là nguồn dữ liệu có thẩm quyền; hệ thống xử lý đồng bộ, không dùng Redis, hàng đợi hay worker.
 
 Mã nguồn sơ đồ (Mermaid): [kiến trúc](docs/diagrams/kien-truc.mmd), [luồng đăng ký](docs/diagrams/luong-dang-ky.mmd), [luồng hủy](docs/diagrams/luong-huy.mmd). Các GIF bên dưới là bản tóm tắt trực quan.
 

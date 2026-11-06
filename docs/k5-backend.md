@@ -7,17 +7,19 @@ Nhánh `feat/k5-backend` sử dụng Java Spring Boot. Backend có `JwtTokenGate
 ```text
 src/main/java/vn/edu/vnu/registration/
   api/       controller, kiểm tra dữ liệu, xử lý lỗi, bảo vệ request, giới hạn tốc độ
-  domain/    mô hình, cổng tích hợp, luật nghiệp vụ Java thuần
-  data/      ánh xạ PostgreSQL, transaction/savepoint
+  domain/    luật nghiệp vụ Java thuần, chia theo nhóm chức năng:
+               auth/ (đăng nhập, đợt đăng ký), enrollment/ (đăng ký, hủy, lớp học phần),
+               idempotency/, exception/ (BusinessException, ErrorBody), port/ (cổng tích hợp)
+  data/      cài đặt cổng bằng Spring JDBC: *RepositoryImpl, TransactionRunnerImpl, metrics/QueryTimer
   config/    Spring bean, SecurityFilterChain, OpenAPI
 src/test/    PostgreSQL tạm, dữ liệu và ca kiểm thử
 ```
 
-`RegistrationService` chỉ phụ thuộc Java chuẩn và các cổng trong `Ports`. Repository dùng Spring JDBC với SQL tham số hóa; mỗi transaction dùng một connection do Spring quản lý. Backend không dùng JPA auto-DDL, Redis, queue, worker, bảng phụ hoặc mã phản hồi 202. `course.prerequisite` chỉ được trả về, không dùng để kiểm tra môn tiên quyết.
+`RegistrationService` là lớp điều phối, chuyển lời gọi tới `AuthService`, `EnrollmentService`, `SectionService`, `RegistrationPeriodService`. Tầng `domain` chỉ phụ thuộc Java chuẩn và các cổng trong `domain.port`. Repository dùng Spring JDBC với SQL tham số hóa; mỗi transaction dùng một connection do Spring quản lý. Backend không dùng JPA auto-DDL, Redis, queue, worker, bảng phụ hoặc mã phản hồi 202. `course.prerequisite` chỉ được trả về, không dùng để kiểm tra môn tiên quyết.
 
 ## JWT và cấu hình khóa
 
-`JwtTokenGateway` triển khai `vn.edu.vnu.registration.domain.Ports.TokenGateway`:
+`JwtTokenGateway` triển khai `vn.edu.vnu.registration.domain.port.TokenGateway`:
 
 ```java
 public interface TokenGateway {

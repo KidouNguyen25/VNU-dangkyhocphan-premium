@@ -12,8 +12,8 @@ flowchart LR
             direction LR
             SEC["Bảo vệ API<br/>JWT, vai trò, giới hạn tốc độ,<br/>request ID, IP cho /health"]
             API["ApiController<br/>10 endpoint /api/v1<br/>kiểm tra request, tạo response"]
-            DOMAIN["RegistrationService<br/>đăng nhập, đăng ký, hủy, quản trị<br/>kiểm tra giờ, ca học, tín chỉ"]
-            DATA["PostgresRepository<br/>giao dịch, khóa account rồi section,<br/>idempotency, cập nhật sĩ số có điều kiện"]
+            DOMAIN["RegistrationService<br/>điều phối AuthService, EnrollmentService,<br/>SectionService, RegistrationPeriodService<br/>kiểm tra giờ, ca học, tín chỉ"]
+            DATA["*RepositoryImpl, TransactionRunnerImpl<br/>giao dịch, khóa account rồi section,<br/>idempotency, cập nhật sĩ số có điều kiện"]
         end
 
         subgraph DBHOST["Máy cơ sở dữ liệu"]
