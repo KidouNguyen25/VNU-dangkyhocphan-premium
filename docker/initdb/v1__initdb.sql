@@ -50,7 +50,6 @@ CREATE TABLE section (
     CONSTRAINT chk_section_positive_capacity CHECK (capacity > 0),
     CONSTRAINT chk_section_session_validity CHECK (session > 0 AND session < 268435456)
 );
-
 CREATE INDEX idx_section_term_course
 ON section (term, course_code);
 

@@ -2,10 +2,11 @@ package vn.edu.vnu.registration.api;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
+
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
-import vn.edu.vnu.registration.domain.exception.BusinessException;
 
 @Component
 public class MemoryRateLimiter {
@@ -15,11 +16,17 @@ public class MemoryRateLimiter {
     private final int ipLimit, accountLimit, loginLimit;
     private long nextCleanup;
 
-    public MemoryRateLimiter(Clock clock, @Value("${app.rate-limit.ip}") int ipLimit,
-                             @Value("${app.rate-limit.account}") int accountLimit,
-                             @Value("${app.rate-limit.login}") int loginLimit) {
+    public MemoryRateLimiter(
+            Clock clock,
+            @Value("${app.rate-limit.ip}") int ipLimit,
+            @Value("${app.rate-limit.account}") int accountLimit,
+            @Value("${app.rate-limit.login}") int loginLimit
+    ) {
         if (ipLimit < 1 || accountLimit < 1 || loginLimit < 1) throw new IllegalArgumentException("Rate limits must be positive");
-        this.clock = clock; this.ipLimit = ipLimit; this.accountLimit = accountLimit; this.loginLimit = loginLimit;
+        this.clock = clock;
+        this.ipLimit = ipLimit;
+        this.accountLimit = accountLimit;
+        this.loginLimit = loginLimit;
     }
 
     public void ip(String ip) {

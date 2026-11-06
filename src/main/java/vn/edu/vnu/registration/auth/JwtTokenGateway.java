@@ -40,7 +40,8 @@ public class JwtTokenGateway implements TokenGateway {
         this.clock = clock;
     }
 
-    @Override public Token issue(Identity identity) {
+    @Override
+    public Token issue(Identity identity) {
         Instant now = clock.instant();
         try {
             var claims = new JWTClaimsSet.Builder()
@@ -58,7 +59,8 @@ public class JwtTokenGateway implements TokenGateway {
         }
     }
 
-    @Override public Identity verify(String bearerToken) {
+    @Override
+    public Identity verify(String bearerToken) {
         try {
             var jwt = SignedJWT.parse(bearerToken);
             if (!JWSAlgorithm.HS256.equals(jwt.getHeader().getAlgorithm())) throw invalid();

@@ -68,7 +68,13 @@ public class ApiController {
     @GetMapping("/me")
     @Operation(summary = "Tài khoản hiện tại", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = MeResponse.class)))
-    public Map<String, Object> me(@Parameter(hidden = true) @AuthenticationPrincipal Identity identity) { return service.me(identity); }
+    public Map<String, Object> me(
+            @Parameter(hidden = true)
+            @AuthenticationPrincipal
+            Identity identity
+    ) {
+        return service.me(identity);
+    }
 
     @GetMapping("/registration")
     @Operation(summary = "Đợt OPEN hiện tại và giờ máy chủ; công khai trong mạng Tailscale")
@@ -84,13 +90,15 @@ public class ApiController {
     @Operation(summary = "Tra cứu lớp công khai trong mạng Tailscale; cursor là id cuối trang trước, limit mặc định 20")
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = SectionsResponse.class)))
     @ApiResponse(responseCode = "304", description = "ETag khớp", content = @Content)
-    public ResponseEntity<?> sections(@RequestParam(required = false) @Size(min = 1, max = 10) String term,
-                                      @RequestParam(required = false) @Size(min = 1, max = 12) String courseCode,
-                                      @RequestParam(required = false) @Size(min = 1, max = 150) String q,
-                                      @RequestParam(required = false) Boolean hasSeats,
-                                      @RequestParam(required = false) @Positive Long cursor,
-                                      @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
-                                      HttpServletRequest request) {
+    public ResponseEntity<?> sections(
+            @RequestParam(required = false) @Size(min = 1, max = 10) String term,
+            @RequestParam(required = false) @Size(min = 1, max = 12) String courseCode,
+            @RequestParam(required = false) @Size(min = 1, max = 150) String q,
+            @RequestParam(required = false) Boolean hasSeats,
+            @RequestParam(required = false) @Positive Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
+            HttpServletRequest request
+    ) {
         allowedQueries(request, Set.of("term", "courseCode", "q", "hasSeats", "cursor", "limit"));
         var body = service.sections(new SectionQuery(term, courseCode, q, hasSeats, cursor, limit));
         return cached(request, body, body);
@@ -113,9 +121,10 @@ public class ApiController {
     @ApiResponse(responseCode = "404", description = "SECTION_NOT_FOUND", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
     @ApiResponse(responseCode = "409", description = "SECTION_FULL / SECTION_ALREADY_ENROLLED / COURSE_ALREADY_ENROLLED / IDEMPOTENCY_KEY_REUSED", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
     @ApiResponse(responseCode = "422", description = "SECTION_TERM_MISMATCH / SESSION_CONFLICT / CREDIT_LIMIT_EXCEEDED", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
-    public ResponseEntity<?> enroll(@Parameter(hidden = true) @AuthenticationPrincipal Identity identity,
-                                     @RequestHeader("Idempotency-Key") @Size(min = 1, max = 128) String key,
-                                     @Valid @RequestBody EnrollRequest request) {
+    public ResponseEntity<?> enroll(
+            @Parameter(hidden = true) @AuthenticationPrincipal Identity identity,
+            @RequestHeader("Idempotency-Key") @Size(min = 1, max = 128) String key,
+            @Valid @RequestBody EnrollRequest request) {
         var result = service.enroll(identity.accountId(), key, request.sectionIds());
         return ResponseEntity.status(result.status()).header("X-Idempotent-Replay", String.valueOf(result.replayed())).body(result.body());
     }
@@ -124,7 +133,10 @@ public class ApiController {
     @Operation(summary = "Hủy của chính mình trong đợt mở; hủy lặp trả 404", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponse(responseCode = "204", description = "Đã hủy, hoàn chỗ đúng một lần", content = @Content)
     @ApiResponse(responseCode = "404", description = "ENROLLMENT_NOT_FOUND, gồm cả id của người khác", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
-    public ResponseEntity<Void> cancel(@Parameter(hidden = true) @AuthenticationPrincipal Identity identity, @PathVariable @Positive long enrollmentId) {
+    public ResponseEntity<Void> cancel(
+            @Parameter(hidden = true) @AuthenticationPrincipal Identity identity,
+            @PathVariable @Positive long enrollmentId
+    ) {
         service.cancel(identity.accountId(), enrollmentId);
         return ResponseEntity.noContent().build();
     }
@@ -134,7 +146,10 @@ public class ApiController {
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = SectionResponse.class)))
     @ApiResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = SectionResponse.class)))
     @ApiResponse(responseCode = "422", description = "CAPACITY_BELOW_ENROLLED / SECTION_HAS_ENROLLMENTS / COURSE_NOT_FOUND / REGISTRATION_NOT_FOUND", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
-    public ResponseEntity<?> saveSection(@PathVariable @Positive long sectionId, @Valid @RequestBody SectionRequest request) {
+    public ResponseEntity<?> saveSection(
+            @PathVariable @Positive long sectionId,
+            @Valid @RequestBody SectionRequest request
+    ) {
         var outcome = service.saveSection(sectionId, request.toDomain());
         return ResponseEntity.status(outcome.status()).body(outcome.body());
     }
@@ -143,7 +158,11 @@ public class ApiController {
     @Operation(summary = "ADMIN: upsert đợt theo term; tối đa một OPEN", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = RegistrationPeriod.class)))
     @ApiResponse(responseCode = "409", description = "OPEN_PERIOD_EXISTS", content = @Content(schema = @Schema(implementation = ErrorBody.class)))
-    public RegistrationPeriod savePeriod(@Valid @RequestBody PeriodRequest request) { return service.savePeriod(request.toDomain()); }
+    public RegistrationPeriod savePeriod(
+            @Valid @RequestBody PeriodRequest request
+    ) {
+        return service.savePeriod(request.toDomain());
+    }
 
     @GetMapping("/health")
     @Operation(summary = "SELECT 1, chỉ IP được phép; không cần JWT")

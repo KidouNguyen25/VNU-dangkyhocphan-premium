@@ -40,9 +40,9 @@ public abstract class GenericRepositoryImpl {
             String state = sql.getSQLState();
             if ("23505".equals(state) && sql.getMessage().contains("one_open_period"))
                 return error(409, "OPEN_PERIOD_EXISTS", "Đã có một đợt đang mở.");
-            if ("23503".equals(state) && sql.getMessage().contains("fk_section_course_code"))
+            if ("23503".equals(state) && (sql.getMessage().contains("course_code") || sql.getMessage().contains("fk_section_course_code")))
                 return error(422, "COURSE_NOT_FOUND", "Học phần không tồn tại.");
-            if ("23503".equals(state) && sql.getMessage().contains("fk_section_term"))
+            if ("23503".equals(state) && (sql.getMessage().contains("section_term") || sql.getMessage().contains("fk_section_term")))
                 return error(422, "REGISTRATION_NOT_FOUND", "Kỳ đăng ký không tồn tại.");
             if (Set.of("40P01", "40001", "55P03", "57014", "53300", "57P01", "08006").contains(state))
                 return error(503, "SERVICE_UNAVAILABLE", "Dịch vụ đang bận, vui lòng gửi lại yêu cầu.");
