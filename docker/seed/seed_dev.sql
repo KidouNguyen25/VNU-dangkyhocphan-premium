@@ -6,7 +6,7 @@
 --       -v pw='<mat-khau-dev>' [-v students=1000] [-v period_status=OPEN] -f - < docker/seed/seed_dev.sql
 --
 -- Tạo: 1 tài khoản admin (code 'admin') và `students` sinh viên (SV00001, SV00002, ...)
--- cùng mật khẩu pw; 8 học phần; 12 lớp; đợt đăng ký 2026-1 (credit_limit 20).
+-- cùng mật khẩu pw; 20 học phần; 36 lớp; đợt đăng ký 2026-1 (credit_limit 20).
 -- Chạy lại được: bỏ qua dòng đã có, làm mới mốc giờ của đợt. Muốn xóa sạch: docker compose down -v.
 -- Lưu ý: khi đợt ở trạng thái OPEN, đăng nhập admin bị khóa (ADMIN_LOGIN_LOCKED).
 -- Dùng -v period_status=CLOSED để đăng nhập admin.
@@ -50,7 +50,19 @@ INSERT INTO course (code, name, credits, prerequisite) VALUES
     ('INT3005', 'Lập trình hướng đối tượng', 3, ''),
     ('INT3006', 'An toàn thông tin', 3, 'INT3003'),
     ('MAT1001', 'Giải tích 1', 3, ''),
-    ('ENG1001', 'Tiếng Anh cơ bản', 2, '')
+    ('ENG1001', 'Tiếng Anh cơ bản', 2, ''),
+    ('INT2001', 'Nhập môn Công nghệ thông tin', 3, ''),
+    ('INT2002', 'Toán rời rạc', 3, ''),
+    ('INT2020', 'Cấu trúc dữ liệu và giải thuật', 4, ''),
+    ('INT2201', 'Lập trình Python', 3, ''),
+    ('INT2202', 'Phát triển ứng dụng web', 3, ''),
+    ('INT3100', 'Trí tuệ nhân tạo', 3, ''),
+    ('INT3101', 'Học máy', 3, ''),
+    ('INT3201', 'Phân tích và thiết kế hệ thống', 3, ''),
+    ('INT3301', 'Điện toán đám mây', 3, ''),
+    ('INT3401', 'Phát triển ứng dụng di động', 3, ''),
+    ('INT3501', 'Kiểm thử phần mềm', 3, ''),
+    ('INT3601', 'Khai phá dữ liệu', 3, '')
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO registration_period (term, login_opens_at, opens_at, closes_at, status, credit_limit)
@@ -73,7 +85,31 @@ INSERT INTO section (id, course_code, term, lecturer, capacity, session) OVERRID
     (9,  'MAT1001', '2026-1', 'Ngô Văn Minh',    150, (1 << 7) | (1 << 15) | (1 << 19)), -- T3 ca4, T5 ca4, T6 ca4
     (10, 'MAT1001', '2026-1', 'Đỗ Thị Nga',      150, (1 << 0) | (1 << 13) | (1 << 18)), -- T2 ca1, T5 ca2, T6 ca3
     (11, 'ENG1001', '2026-1', 'Trịnh Văn Phúc',    2, (1 << 20) | (1 << 21)),          -- T7 ca1, T7 ca2
-    (12, 'ENG1001', '2026-1', 'Lý Thị Quỳnh',     40, (1 << 22) | (1 << 24))           -- T7 ca3, CN ca1
+    (12, 'ENG1001', '2026-1', 'Lý Thị Quỳnh',     40, (1 << 22) | (1 << 24)),          -- T7 ca3, CN ca1
+    (13, 'INT2001', '2026-1', 'Nguyễn Minh Đức',  80, (1 << 0) | (1 << 8)),
+    (14, 'INT2001', '2026-1', 'Trần Thu Hà',      80, (1 << 4) | (1 << 12)),
+    (15, 'INT2002', '2026-1', 'Lê Quốc Bảo',      70, (1 << 1) | (1 << 9)),
+    (16, 'INT2002', '2026-1', 'Phạm Ngọc Mai',    70, (1 << 5) | (1 << 13)),
+    (17, 'INT2020', '2026-1', 'Hoàng Anh Tuấn',   60, (1 << 2) | (1 << 10)),
+    (18, 'INT2020', '2026-1', 'Vũ Hải Yến',       60, (1 << 6) | (1 << 14)),
+    (19, 'INT2201', '2026-1', 'Đặng Thành Long',   55, (1 << 3) | (1 << 11)),
+    (20, 'INT2201', '2026-1', 'Bùi Khánh Linh',   55, (1 << 7) | (1 << 15)),
+    (21, 'INT2202', '2026-1', 'Ngô Đức Anh',       50, (1 << 0) | (1 << 12)),
+    (22, 'INT2202', '2026-1', 'Đỗ Phương Thảo',    50, (1 << 4) | (1 << 16)),
+    (23, 'INT3100', '2026-1', 'Trịnh Hoàng Nam',   45, (1 << 1) | (1 << 17)),
+    (24, 'INT3100', '2026-1', 'Lý Minh Châu',      45, (1 << 5) | (1 << 21)),
+    (25, 'INT3101', '2026-1', 'Phan Gia Huy',      45, (1 << 2) | (1 << 18)),
+    (26, 'INT3101', '2026-1', 'Mai Thu Trang',     45, (1 << 6) | (1 << 22)),
+    (27, 'INT3201', '2026-1', 'Cao Thanh Tùng',    50, (1 << 3) | (1 << 19)),
+    (28, 'INT3201', '2026-1', 'Dương Ngọc Lan',    50, (1 << 7) | (1 << 23)),
+    (29, 'INT3301', '2026-1', 'Võ Quang Hưng',     40, (1 << 0) | (1 << 20)),
+    (30, 'INT3301', '2026-1', 'Lâm Thị Hạnh',      40, (1 << 4) | (1 << 24)),
+    (31, 'INT3401', '2026-1', 'Đinh Hoài Phương',  45, (1 << 1) | (1 << 13)),
+    (32, 'INT3401', '2026-1', 'Hồ Nhật Minh',      45, (1 << 5) | (1 << 17)),
+    (33, 'INT3501', '2026-1', 'Nguyễn Hà My',      55, (1 << 2) | (1 << 14)),
+    (34, 'INT3501', '2026-1', 'Trần Quốc Khánh',   55, (1 << 6) | (1 << 18)),
+    (35, 'INT3601', '2026-1', 'Phạm Tuấn Kiệt',    40, (1 << 3) | (1 << 15)),
+    (36, 'INT3601', '2026-1', 'Đỗ Ngọc Anh',       40, (1 << 7) | (1 << 19))
 ON CONFLICT (id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('section', 'id'), (SELECT max(id) FROM section));
 
