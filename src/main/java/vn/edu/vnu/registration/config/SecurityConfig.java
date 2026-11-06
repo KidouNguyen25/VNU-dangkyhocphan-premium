@@ -14,7 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import vn.edu.vnu.registration.api.ApiSecurityFilter;
 import vn.edu.vnu.registration.api.MemoryRateLimiter;
-import vn.edu.vnu.registration.data.PostgresRepository;
+import vn.edu.vnu.registration.data.metrics.QueryTimer;
 import vn.edu.vnu.registration.domain.exception.ErrorBody;
 import vn.edu.vnu.registration.domain.port.TokenGateway;
 
@@ -22,7 +22,7 @@ import vn.edu.vnu.registration.domain.port.TokenGateway;
 @Configuration
 public class SecurityConfig {
     @Bean public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<TokenGateway> tokens, MemoryRateLimiter limiter,
-                                                         ObjectMapper json, PostgresRepository repository,
+                                                         ObjectMapper json, QueryTimer repository,
                                                          @Value("${app.health-allowed-ips}") String healthIps) throws Exception {
         return http.csrf(csrf -> csrf.disable()).cors(Customizer.withDefaults())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

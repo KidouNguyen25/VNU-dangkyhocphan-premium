@@ -19,7 +19,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import vn.edu.vnu.registration.data.PostgresRepository;
+import vn.edu.vnu.registration.domain.auth.AuthService;
+import vn.edu.vnu.registration.domain.auth.RegistrationPeriodService;
+import vn.edu.vnu.registration.domain.enrollment.EnrollmentService;
+import vn.edu.vnu.registration.domain.enrollment.SectionService;
+import vn.edu.vnu.registration.domain.idempotency.IdempotencyService;
+import vn.edu.vnu.registration.domain.port.*;
 import vn.edu.vnu.registration.domain.RegistrationService;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,7 +54,12 @@ class BackendIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @Autowired RegistrationService service;
-    @Autowired PostgresRepository repository;
+    @Autowired AccountRepository accounts;
+    @Autowired RegistrationPeriodRepository periods;
+    @Autowired SectionRepository sections;
+    @Autowired EnrollmentRepository enrollments;
+    @Autowired IdempotencyRepository idempotency;
+    @Autowired TransactionRunner tx;
 
     static EmbeddedPostgres postgres() {
         try {
@@ -269,7 +279,10 @@ class BackendIntegrationTest {
     void expiryAndReplayAcrossNewServiceInstance() throws Exception {
         var first = enroll(1, "durable", 1); status(first, 201);
         var tokens = new AuthTestConfig().testTokens();
-        var restarted = new RegistrationService(repository, tokens, (raw, hash) -> false, HASH, Clock.fixed(NOW, ZoneOffset.UTC));
+        var clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        var restarted = new RegistrationService(new AuthService(accounts, periods, tokens, (raw, hash) -> false, HASH, clock),
+                new EnrollmentService(enrollments, sections, periods, accounts, tx, new IdempotencyService(idempotency, tx), clock),
+                new SectionService(sections, tx), new RegistrationPeriodService(periods, tx, clock), clock);
         var replay = restarted.enroll(1, "durable", List.of(1L));
         assertThat(replay.replayed()).isTrue(); assertThat(json.<JsonNode>valueToTree(replay.body())).isEqualTo(body(first));
         OWNER.execute("UPDATE idempotency_record SET expires_at=clock_timestamp()-interval '1 second' WHERE idempotency_key='durable'");

@@ -1,7 +1,5 @@
 package vn.edu.vnu.registration.domain;
 
-import org.springframework.jdbc.core.JdbcTemplate;
-import vn.edu.vnu.registration.data.PostgresRepository;
 import vn.edu.vnu.registration.domain.auth.AuthService;
 import vn.edu.vnu.registration.domain.auth.RegistrationPeriodService;
 import vn.edu.vnu.registration.domain.auth.model.Identity;
@@ -11,9 +9,6 @@ import vn.edu.vnu.registration.domain.enrollment.EnrollmentService;
 import vn.edu.vnu.registration.domain.enrollment.SectionService;
 import vn.edu.vnu.registration.domain.enrollment.model.SectionInput;
 import vn.edu.vnu.registration.domain.enrollment.model.SectionQuery;
-import vn.edu.vnu.registration.domain.idempotency.IdempotencyService;
-import vn.edu.vnu.registration.domain.port.PasswordVerifier;
-import vn.edu.vnu.registration.domain.port.TokenGateway;
 
 import java.time.Clock;
 import java.util.List;
@@ -24,7 +19,6 @@ public class RegistrationService {
     private final EnrollmentService enrollmentService;
     private final SectionService sectionService;
     private final RegistrationPeriodService periodService;
-    private final JdbcTemplate jdbc;
     private final Clock clock;
 
     public RegistrationService(
@@ -32,32 +26,13 @@ public class RegistrationService {
             EnrollmentService enrollmentService,
             SectionService sectionService,
             RegistrationPeriodService periodService,
-            JdbcTemplate jdbc,
             Clock clock
     ) {
         this.authService = authService;
         this.enrollmentService = enrollmentService;
         this.sectionService = sectionService;
         this.periodService = periodService;
-        this.jdbc = jdbc;
         this.clock = clock;
-    }
-
-    public RegistrationService(
-            PostgresRepository repo,
-            TokenGateway tokens,
-            PasswordVerifier passwords,
-            String dummyHash,
-            Clock clock
-    ) {
-        this(
-                new AuthService(repo, repo, tokens, passwords, dummyHash, clock),
-                new EnrollmentService(repo, repo, repo, repo, repo, new IdempotencyService(repo, repo), clock),
-                new SectionService(repo, repo),
-                new RegistrationPeriodService(repo, repo, clock),
-                repo != null ? repo.getJdbcTemplate() : null,
-                clock
-        );
     }
 
     public Token login(String code, String password) {
@@ -97,9 +72,7 @@ public class RegistrationService {
     }
 
     public Map<String, Object> health() {
-        if (jdbc != null) {
-            jdbc.queryForObject("SELECT 1", Integer.class);
-        }
+        periodService.ping();
         return Map.of("status", "ok", "serverTime", clock.instant());
     }
 

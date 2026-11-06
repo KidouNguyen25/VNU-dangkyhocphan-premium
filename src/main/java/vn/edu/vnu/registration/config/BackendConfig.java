@@ -9,7 +9,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -42,12 +41,6 @@ public class BackendConfig {
     @Bean
     @ConditionalOnMissingBean
     public QueryTimer queryTimer() { return new QueryTimer(); }
-
-    @Bean
-    @Primary
-    public PostgresRepository repository(JdbcTemplate jdbc, DataSource ds, ObjectMapper json) {
-        return new PostgresRepository(jdbc, new TransactionTemplate(new DataSourceTransactionManager(ds)), json);
-    }
 
     @Bean
     public AccountRepository accountRepository(JdbcTemplate jdbc, QueryTimer timer) {
@@ -124,10 +117,9 @@ public class BackendConfig {
             EnrollmentService enrollmentService,
             SectionService sectionService,
             RegistrationPeriodService periodService,
-            JdbcTemplate jdbc,
             Clock clock
     ) {
-        return new RegistrationService(authService, enrollmentService, sectionService, periodService, jdbc, clock);
+        return new RegistrationService(authService, enrollmentService, sectionService, periodService, clock);
     }
 
     public static TokenGateway missingTokenGateway() {

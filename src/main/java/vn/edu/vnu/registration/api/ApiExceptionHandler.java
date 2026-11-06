@@ -17,7 +17,8 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.Map;
-import static vn.edu.vnu.registration.domain.Models.*;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
+import vn.edu.vnu.registration.domain.exception.ErrorBody;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {

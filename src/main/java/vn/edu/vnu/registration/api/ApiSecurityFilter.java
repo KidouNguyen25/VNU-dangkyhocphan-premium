@@ -12,7 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-import vn.edu.vnu.registration.data.PostgresRepository;
+import vn.edu.vnu.registration.data.metrics.QueryTimer;
 import vn.edu.vnu.registration.domain.auth.model.Identity;
 import vn.edu.vnu.registration.domain.exception.BusinessException;
 import vn.edu.vnu.registration.domain.port.TokenGateway;
@@ -34,9 +34,9 @@ public class ApiSecurityFilter extends OncePerRequestFilter {
     private final MemoryRateLimiter limiter;
     private final ObjectMapper json;
     private final Set<String> healthIps;
-    private final PostgresRepository repository;
+    private final QueryTimer repository;
 
-    public ApiSecurityFilter(TokenGateway tokens, MemoryRateLimiter limiter, ObjectMapper json, String healthIps, PostgresRepository repository) {
+    public ApiSecurityFilter(TokenGateway tokens, MemoryRateLimiter limiter, ObjectMapper json, String healthIps, QueryTimer repository) {
         this.tokens = tokens; this.limiter = limiter; this.json = json; this.repository = repository;
         this.healthIps = Arrays.stream(healthIps.split(",")).map(String::trim).filter(s -> !s.isBlank()).map(ApiSecurityFilter::normalizedIp).collect(Collectors.toSet());
     }

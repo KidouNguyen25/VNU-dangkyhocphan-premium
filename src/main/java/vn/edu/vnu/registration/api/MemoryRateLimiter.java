@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
-import static vn.edu.vnu.registration.domain.Models.*;
+import vn.edu.vnu.registration.domain.exception.BusinessException;
 
 @Component
 public class MemoryRateLimiter {

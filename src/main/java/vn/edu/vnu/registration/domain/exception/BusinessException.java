@@ -1,7 +1,5 @@
 package vn.edu.vnu.registration.domain.exception;
 
-import vn.edu.vnu.registration.domain.Models;
-
 import java.util.Map;
 
 public class BusinessException extends RuntimeException {

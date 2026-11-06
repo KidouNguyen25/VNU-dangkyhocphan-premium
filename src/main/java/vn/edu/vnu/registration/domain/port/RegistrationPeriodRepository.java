@@ -7,4 +7,5 @@ import java.util.Optional;
 public interface RegistrationPeriodRepository {
     Optional<RegistrationPeriod> currentPeriod();
     public void upsertPeriod(RegistrationPeriod p);
+    void ping();
 }

@@ -18,6 +18,11 @@ public class RegistrationPeriodRepositoryImpl extends GenericRepositoryImpl impl
     }
 
     @Override
+    public void ping() {
+        query("SELECT 1", (rs, row) -> 1);
+    }
+
+    @Override
     public Optional<RegistrationPeriod> currentPeriod() {
         return readPeriod(false);
     }

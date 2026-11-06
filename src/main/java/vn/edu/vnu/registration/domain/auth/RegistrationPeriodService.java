@@ -21,6 +21,10 @@ public class RegistrationPeriodService {
         this.clock = clock;
     }
 
+    public void ping() {
+        periodRepository.ping();
+    }
+
     public Map<String, Object> registration() {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("registration", periodRepository.currentPeriod().orElse(null));

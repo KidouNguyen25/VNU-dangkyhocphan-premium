@@ -6,7 +6,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import vn.edu.vnu.registration.config.BackendConfig;
-import vn.edu.vnu.registration.data.PostgresRepository;
+import vn.edu.vnu.registration.data.metrics.QueryTimer;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -19,7 +19,7 @@ class ApiSecurityFilterTest {
 
     @Test
     void rateLimitedHttpResponseHasRetryAfterAndErrorEnvelope() throws Exception {
-        var filter = new ApiSecurityFilter(BackendConfig.missingTokenGateway(), new MemoryRateLimiter(clock, 1, 1, 1), json, "127.0.0.1", mock(PostgresRepository.class));
+        var filter = new ApiSecurityFilter(BackendConfig.missingTokenGateway(), new MemoryRateLimiter(clock, 1, 1, 1), json, "127.0.0.1", mock(QueryTimer.class));
         var first = new MockHttpServletResponse();
         filter.doFilter(request(null), first, (req, res) -> ((jakarta.servlet.http.HttpServletResponse) res).setStatus(204));
         assertThat(first.getStatus()).isEqualTo(204);
@@ -35,7 +35,7 @@ class ApiSecurityFilterTest {
     void unconfiguredGatewayFailsClosedWithNoSecurityIdentity() throws Exception {
         SecurityContextHolder.clearContext();
         try {
-            var filter = new ApiSecurityFilter(BackendConfig.missingTokenGateway(), new MemoryRateLimiter(clock, 10, 10, 10), json, "127.0.0.1", mock(PostgresRepository.class));
+            var filter = new ApiSecurityFilter(BackendConfig.missingTokenGateway(), new MemoryRateLimiter(clock, 10, 10, 10), json, "127.0.0.1", mock(QueryTimer.class));
             var response = new MockHttpServletResponse();
             filter.doFilter(request("Bearer anything"), response, (req, res) -> fail("Unverified bearer must not reach controller"));
             assertThat(response.getStatus()).isEqualTo(503);
