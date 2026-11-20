@@ -7,6 +7,8 @@
 #       --admin-token <JWT_admin> \
 #       --student-password <mat_khau_sinh_vien>
 # Yêu cầu: curl, bash >= 4, GNU parallel (tuỳ chọn — fallback về background jobs)
+# Chạy trên seed mới (students >= 300): script làm đầy lớp 11 và đăng ký cho
+# SV00001–SV00050, SV00100, SV00200, nên lần chạy thứ hai trên cùng DB sẽ FAIL.
 
 set -euo pipefail
 
@@ -60,7 +62,7 @@ login() {
     resp=$(curl -s -X POST "${BASE_URL}/auth/login" \
         -H "Content-Type: application/json" \
         -d "{\"code\":\"${code}\",\"password\":\"${password}\"}")
-    echo "$resp" | grep -o '"token":"[^"]*"' | head -1 | cut -d'"' -f4
+    echo "$resp" | grep -o '"accessToken":"[^"]*"' | head -1 | cut -d'"' -f4 || true
 }
 
 HAS_PARALLEL=0
@@ -73,7 +75,7 @@ OVERALL_FAIL=0
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-scenario_header "a" "50 yêu cầu đồng thời vào lớp chỉ còn 1 chỗ (section_id=11, capacity=2)"
+scenario_header "a" "50 yêu cầu đồng thời vào lớp chỉ còn 2 chỗ (section_id=11, capacity=2)"
 
 info "Bước 1: Đăng nhập lấy JWT cho 50 sinh viên (SV00001 → SV00050)..."
 
@@ -88,7 +90,8 @@ login_batch() {
     tok=$(login "$code" "$STUDENT_PASSWORD")
     echo "$tok" > "${TOKEN_DIR}/${idx}.tok"
 }
-export -f login_batch login BASE_URL STUDENT_PASSWORD TOKEN_DIR
+export -f login_batch login
+export BASE_URL STUDENT_PASSWORD TOKEN_DIR
 
 if [[ $HAS_PARALLEL -eq 1 ]]; then
     seq 1 50 | parallel -j10 login_batch
@@ -123,7 +126,8 @@ send_enrollment_a() {
         -d "{\"sectionIds\":[11]}")
     echo "$http_code" > "${RESP_DIR_A}/${idx}.status"
 }
-export -f send_enrollment_a BASE_URL TOKEN_DIR RESP_DIR_A
+export -f send_enrollment_a
+export BASE_URL TOKEN_DIR RESP_DIR_A
 
 if [[ $HAS_PARALLEL -eq 1 ]]; then
     seq 1 50 | parallel -j50 send_enrollment_a
@@ -137,23 +141,29 @@ for i in $(seq 1 50); do
     sc=$(cat "${RESP_DIR_A}/${i}.status" 2>/dev/null || echo "ERR")
     case "$sc" in
         201) COUNT_201=$((COUNT_201 + 1)) ;;
-        409) COUNT_409=$((COUNT_409 + 1)) ;;
+        409)
+            code=$(grep -o '"code":"[^"]*"' "${RESP_DIR_A}/${i}.body" 2>/dev/null | head -1 | cut -d'"' -f4 || true)
+            if [[ "$code" == "SECTION_FULL" ]]; then
+                COUNT_409=$((COUNT_409 + 1))
+            else
+                COUNT_OTHER=$((COUNT_OTHER + 1)); info "  SV$(printf '%05d' $i) nhận 409 code=$code"
+            fi ;;
         *)   COUNT_OTHER=$((COUNT_OTHER + 1)); info "  SV$(printf '%05d' $i) nhận status=$sc" ;;
     esac
 done
 
-info "Kết quả: 201=$COUNT_201, 409=$COUNT_409, khác=$COUNT_OTHER"
+info "Kết quả: 201=$COUNT_201, 409 SECTION_FULL=$COUNT_409, khác=$COUNT_OTHER"
 
-if [[ $COUNT_201 -eq 1 ]]; then
-    pass "Đúng 1 yêu cầu thành công (201) — section_id=11 chỉ còn 1 chỗ"
+if [[ $COUNT_201 -eq 2 ]]; then
+    pass "Đúng 2 yêu cầu thành công (201) — section_id=11 có sĩ số 2"
 else
-    fail "Kỳ vọng đúng 1 response 201, nhận được $COUNT_201"
+    fail "Kỳ vọng đúng 2 response 201, nhận được $COUNT_201"
 fi
 
-if [[ $COUNT_409 -eq 49 ]]; then
-    pass "49 yêu cầu còn lại nhận 409 (lớp đầy)"
+if [[ $COUNT_409 -eq 48 ]]; then
+    pass "48 yêu cầu còn lại nhận 409 SECTION_FULL (lớp đầy)"
 else
-    fail "Kỳ vọng 49 response 409, nhận được $COUNT_409"
+    fail "Kỳ vọng 48 response 409 SECTION_FULL, nhận được $COUNT_409"
 fi
 
 remind_invariants
@@ -186,7 +196,8 @@ else
             -d '{"sectionIds":[3]}')
         echo "$http_code" > "${RESP_DIR_B}/${idx}.status"
     }
-    export -f send_idempotent_b BASE_URL FIXED_TOKEN FIXED_KEY RESP_DIR_B
+    export -f send_idempotent_b
+    export BASE_URL FIXED_TOKEN FIXED_KEY RESP_DIR_B
 
     if [[ $HAS_PARALLEL -eq 1 ]]; then
         seq 1 20 | parallel -j20 send_idempotent_b
@@ -217,7 +228,7 @@ else
     fi
 
     if [[ "$FIRST_STATUS" == "201" ]]; then
-        ENROLLMENT_ID=$(echo "$FIRST_BODY" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+        ENROLLMENT_ID=$(echo "$FIRST_BODY" | grep -o '"enrollmentId":[0-9]*' | head -1 | cut -d: -f2 || true)
         info "Enrollment ID được tạo: $ENROLLMENT_ID"
         pass "Kịch bản idempotency: 20 lần gửi cùng key → chỉ 1 enrollment được tạo"
     fi
@@ -257,7 +268,7 @@ else
     info "Lần 2 → HTTP $RESP2_C"
 
     if [[ "$RESP2_C" == "409" ]]; then
-        ERROR_CODE=$(cat "$BODY2_C" | grep -o '"code":"[^"]*"' | head -1 | cut -d'"' -f4)
+        ERROR_CODE=$(cat "$BODY2_C" | grep -o '"code":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
         if [[ "$ERROR_CODE" == "IDEMPOTENCY_KEY_REUSED" ]]; then
             pass "Lần 2 nhận 409 IDEMPOTENCY_KEY_REUSED đúng như kỳ vọng"
         else
@@ -290,16 +301,17 @@ else
         -d '{"sectionIds":[5]}')
     info "Đăng ký → HTTP $ENROLL_STATUS"
 
+    ENROLL_ID=""
+    if [[ "$ENROLL_STATUS" == "201" ]]; then
+        ENROLL_ID=$(cat "$ENROLL_BODY" | grep -o '"enrollmentId":[0-9]*' | head -1 | cut -d: -f2 || true)
+    fi
+
     if [[ "$ENROLL_STATUS" != "201" ]]; then
         fail "Không thể đăng ký lớp (HTTP $ENROLL_STATUS) — bỏ qua kịch bản (d)"
+    elif [[ -z "$ENROLL_ID" ]]; then
+        fail "Đăng ký trả 201 nhưng body không có enrollmentId — bỏ qua kịch bản (d)"
     else
-        ENROLL_ID=$(cat "$ENROLL_BODY" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
-        if [[ -z "$ENROLL_ID" ]]; then
-            ENROLL_ID=$(cat "$ENROLL_BODY" | grep -o '"id":[0-9]*' | sed -n '1p' | cut -d: -f2)
-        fi
         info "Enrollment ID: $ENROLL_ID"
-
-        info "Lấy enrolled_count của section_id=5 trước khi hủy..."
 
         info "Hủy lần 1: DELETE /enrollments/${ENROLL_ID}..."
         DEL1_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -321,7 +333,7 @@ else
         info "Hủy lần 2 → HTTP $DEL2_STATUS"
 
         if [[ "$DEL2_STATUS" == "404" ]]; then
-            ERROR_CODE_D=$(cat "$DEL2_BODY" | grep -o '"code":"[^"]*"' | head -1 | cut -d'"' -f4)
+            ERROR_CODE_D=$(cat "$DEL2_BODY" | grep -o '"code":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
             if [[ "$ERROR_CODE_D" == "ENROLLMENT_NOT_FOUND" ]]; then
                 pass "Hủy lần 2 nhận 404 ENROLLMENT_NOT_FOUND đúng như kỳ vọng"
             else
@@ -336,7 +348,6 @@ else
 fi
 
 remind_invariants
-Ư
 echo ""
 echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${CYAN}${BOLD}  KẾT QUẢ TỔNG HỢP${NC}"
